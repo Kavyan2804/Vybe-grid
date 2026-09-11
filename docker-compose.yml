@@ -1,0 +1,36 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gridpilot
+      POSTGRES_PASSWORD: gridpilot
+      POSTGRES_DB: gridpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - gridpilot_db_data:/var/lib/postgresql/data   # named volume — survives `compose down`
+
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./optimizer:/app/optimizer
+      - ./backend/src:/app/src
+
+  dashboard:
+    build:
+      context: ./dashboard
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  gridpilot_db_data:

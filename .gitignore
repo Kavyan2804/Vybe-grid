@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+dist/
+next-env.d.ts
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data
+*.db
+*.db-wal
+*.db-shm
+
+# Generated
+packages/contracts/generated/
