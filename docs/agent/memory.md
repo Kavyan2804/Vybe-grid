@@ -44,3 +44,16 @@ stay prospective (unchecked boxes, no fabricated history) until work actually ha
 ---
 
 <!-- Next entry starts at 002. Do not renumber or edit an existing entry — supersede it instead. -->
+
+## 002 — Record the Phase 0 Pyomo/HiGHS smoke-test latency baseline
+**Date:** 2026-09-12 · **By:** Copilot · **Status:** Active
+
+**Decision.** Use the Pyomo/HiGHS smoke test as the initial solver-latency baseline: the two-variable
+LP solved to objective `10.0` in `275.778 ms`, and the 24-variable toy problem solved to objective
+`276.0` in `8.206 ms` on the development machine.
+
+**Reason.** Phase 0 requires a real, recorded number before the full rolling-horizon formulation is
+built; the two tests establish correctness and a first-order latency floor.
+
+**Forecloses.** These values are machine-specific sanity measurements, not the Phase 5 production
+latency budget or a claim about the eventual full constraint set.

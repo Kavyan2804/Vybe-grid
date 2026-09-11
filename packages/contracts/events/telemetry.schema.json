@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telemetry",
+  "type": "object",
+  "required": ["site_id", "recorded_at", "solar_kw", "battery_kw", "diesel_kw", "load_kw", "soc_pct", "diesel_on", "source"],
+  "properties": {
+    "site_id": { "type": "string" },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "solar_kw": { "type": "number", "minimum": 0 },
+    "battery_kw": { "type": "number" },
+    "diesel_kw": { "type": "number", "minimum": 0 },
+    "load_kw": { "type": "number", "minimum": 0 },
+    "soc_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "diesel_on": { "type": "boolean" },
+    "source": { "type": "string" }
+  },
+  "additionalProperties": false
+}

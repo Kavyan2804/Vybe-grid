@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Forecast",
+  "type": "object",
+  "required": [
+    "site_id",
+    "issued_at",
+    "horizon_start",
+    "horizon_end",
+    "source",
+    "stale",
+    "entries"
+  ],
+  "properties": {
+    "site_id": { "type": "string" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "horizon_start": { "type": "string", "format": "date-time" },
+    "horizon_end": { "type": "string", "format": "date-time" },
+    "source": { "type": "string" },
+    "stale": { "type": "boolean" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["hour", "solar_kw", "load_kw"],
+        "properties": {
+          "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+          "solar_kw": { "type": "number", "minimum": 0 },
+          "load_kw": { "type": "number", "minimum": 0 },
+          "ghi_wm2": { "type": "number", "minimum": 0 },
+          "cloud_cover_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "temperature_c": { "type": "number" }
+        }
+      },
+      "minItems": 24,
+      "maxItems": 24
+    }
+  },
+  "additionalProperties": false
+}

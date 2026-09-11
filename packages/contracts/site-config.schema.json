@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Site Configuration",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "latitude": { "type": "number" },
+    "longitude": { "type": "number" },
+    "timezone": { "type": "string" },
+    "fuel_cost_per_litre": { "type": "number" },
+    "emission_factor_kg_co2_per_litre": { "type": "number" },
+    "battery": {
+      "type": "object",
+      "properties": {
+        "capacity_kwh": { "type": "number" },
+        "max_charge_kw": { "type": "number" },
+        "max_discharge_kw": { "type": "number" },
+        "round_trip_efficiency": { "type": "number" },
+        "degradation_cost_per_kwh_cycled": { "type": "number" },
+        "soc_min_pct": { "type": "number" },
+        "soc_max_pct": { "type": "number" }
+      },
+      "required": ["capacity_kwh", "max_charge_kw", "max_discharge_kw", "round_trip_efficiency", "degradation_cost_per_kwh_cycled", "soc_min_pct", "soc_max_pct"]
+    },
+    "diesel_generator": {
+      "type": "object",
+      "properties": {
+        "min_load_kw": { "type": "number" },
+        "max_load_kw": { "type": "number" },
+        "start_cost": { "type": "number" },
+        "min_uptime_h": { "type": "number" },
+        "min_downtime_h": { "type": "number" },
+        "fuel_curve": {
+          "type": "object",
+          "properties": {
+            "litres_per_kwh_min_load": { "type": "number" },
+            "litres_per_kwh_max_load": { "type": "number" }
+          },
+          "required": ["litres_per_kwh_min_load", "litres_per_kwh_max_load"]
+        }
+      },
+      "required": ["min_load_kw", "max_load_kw", "start_cost", "min_uptime_h", "min_downtime_h", "fuel_curve"]
+    },
+    "load": {
+      "type": "object",
+      "properties": {
+        "critical_kw": { "type": "array", "items": { "type": "number" }, "minItems": 24, "maxItems": 24 },
+        "flexible_kw": { "type": "array", "items": { "type": "number" }, "minItems": 24, "maxItems": 24 }
+      },
+      "required": ["critical_kw", "flexible_kw"]
+    }
+  },
+  "required": ["name", "latitude", "longitude", "timezone", "fuel_cost_per_litre", "emission_factor_kg_co2_per_litre", "battery", "diesel_generator", "load"]
+}

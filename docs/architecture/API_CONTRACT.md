@@ -48,6 +48,7 @@ The most recent 24-hour dispatch plan.
 ```jsonc
 {
   "plan_id": "plan_000482",
+  "forecast_id": "forecast_000482",
   "site_id": "site-001",
   "tick_at": "2026-01-14T09:00:00+05:30",
   "starting_soc_kwh": 12.4,
@@ -75,7 +76,8 @@ The most recent 24-hour dispatch plan.
   ],
   "objective_cost": 812.4,
   "solver_status": "optimal",
-  "solve_ms": 4210
+  "solve_ms": 4210,
+  "fallback_used": false
 }
 ```
 
@@ -107,6 +109,8 @@ fired and the greedy rule produced this row instead of the MILP.
 {
   "site_id": "site-001",
   "issued_at": "2026-01-14T08:45:00+05:30",
+  "horizon_start": "2026-01-14T09:00:00+05:30",
+  "horizon_end": "2026-01-15T09:00:00+05:30",
   "horizon_hours": 24,
   "source": "openmeteo",
   "stale": false,
@@ -162,6 +166,10 @@ modelled estimate.
       "title": "Diesel start planned within 2 hours",
       "raised_at": "2026-01-14T09:00:00+05:30",
       "received_at": "2026-01-14T09:00:04+05:30",
+      "payload": {},
+      "acknowledged_at": null,
+      "resolved_at": null,
+      "cooldown_until": null,
       "badges": ["FORECAST"]
     }
   ]
