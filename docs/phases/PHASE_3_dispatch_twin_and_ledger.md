@@ -3,6 +3,7 @@
 > **Goal:** Something executes the plan and produces believable actual telemetry before real hardware
 > exists, and the always-on shadow baseline turns "we saved diesel" into a measured number.
 > **Status:** Not started — can run concurrently with Phases 2 and 4
+> **Owner:** Split — Aarin (Task 3.1 digital twin, Task 3.2 dispatch wiring) · Dhruvi & Kavyan (Task 3.3 baseline ledger, Task 3.4 cost/emissions query, Task 3.5 alert rules)
 > **Depends on:** Phase 1 (contracts frozen)
 > **Demo milestone:** A savings figure appears on `GET /api/savings`, backed by two ledgers —
 > optimized and baseline — run against identical realized conditions.

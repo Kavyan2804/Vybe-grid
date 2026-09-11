@@ -4,6 +4,7 @@
 > literal greedy controller from the problem statement runs and produces a number, and every shared
 > data shape is frozen before anything downstream depends on it.
 > **Status:** Not started
+> **Owner:** Aarin (ML, integration, dockerization, data collection/cleaning/preprocessing)
 > **Depends on:** —
 > **Demo milestone:** Given one day of forecast and a site config, the greedy controller produces a
 > 24-hour dispatch decision sequence and prints total diesel-hours, fuel litres and cost.

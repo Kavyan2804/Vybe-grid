@@ -4,6 +4,7 @@
 > own prior prediction, models diesel run-time and battery degradation properly, and degrades safely
 > when the solver can't produce an answer in time.
 > **Status:** Not started — can run concurrently with Phases 3 and 4
+> **Owner:** Aarin (ML) — Dhruvi & Kavyan on call to support the Phase 1 repositories this phase calls into, no new backend code expected
 > **Depends on:** Phase 1 (contracts frozen; a single solve already works)
 > **Demo milestone:** The plan visibly changes between two consecutive ticks as the forecast updates,
 > and killing the solver for one tick produces a logged fallback decision instead of a crash.

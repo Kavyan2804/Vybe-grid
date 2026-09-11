@@ -3,6 +3,7 @@
 > **Goal:** One forecast, one MILP solve, one chart on screen. Prove the pipe end to end with the
 > thinnest possible slice before adding the rolling mechanism.
 > **Status:** Not started
+> **Owner:** ALL — Aarin (MILP v1, scenariogen, infra) · Dhruvi & Kavyan (DB, migrations, triggered-solve API) · Yashita (dashboard shell, badges, first chart)
 > **Depends on:** Phase 0
 > **Demo milestone:** A 24-hour dispatch plan, solved from a real forecast and a real site config,
 > renders as a chart in a browser.

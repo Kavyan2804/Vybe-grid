@@ -224,19 +224,31 @@ to a `memory.md` entry. Nothing skips a step.
 
 ## 10. Ownership
 
-Assign per lane once a team exists. The layer boundaries in §1 are what make these lanes safe to run
-concurrently — CODEOWNERS-style ownership below is a placeholder to fill in, not a prescription:
+Four people, three lanes. The layer boundaries in §1 are what make these lanes safe to run
+concurrently — `optimizer/`, `backend/` and `dashboard/` barely overlap, the same way CODEOWNERS
+partitioning worked on a prior project this structure is modelled on.
 
 ```
-/optimizer/domain/            (owner)
-/optimizer/application/       (owner)
-/optimizer/infrastructure/    (owner)
-/backend/                     (owner)
-/dashboard/                   (owner)
-/packages/contracts/          (owner — this file is frozen after Phase 1)
-/infra/                       (owner)
-/docs/                        (owner)
+/optimizer/                    Aarin           (ML, integration, dockerization, data)
+/backend/                      Dhruvi, Kavyan  (backend & database)
+/dashboard/                    Yashita         (frontend)
+/packages/contracts/           Aarin drafts — Dhruvi, Kavyan and Yashita review before it freezes
+                                (Phase 0 Task 0.4); additive-only after
+/tools/scenariogen/            Aarin           (it's data — scenario authoring)
+/infra/                        Aarin           (dockerization)
+/docs/                         Aarin coordinates — each lane keeps its own phase doc's
+                                checkboxes and `docs/agent/memory.md`/`mistakes.md` entries current
 ```
+
+**Why `optimizer/` is one person's directory rather than split further.** Domain, application and
+infrastructure inside it are separate layers for testability (§1), not separate ownership — splitting
+a rolling-horizon formulation across two people mid-build is how the SoC-feedback bug class in
+`docs/agent/mistakes.md` "known in advance" section happens for real. `backend/` is two people
+because database schema work (migrations, DATA_MODEL.md) and API/scheduler work (routers, SSE,
+alerts) genuinely parallelize once Phase 1's tables exist — see `docs/phases/PHASE_3_dispatch_twin_and_ledger.md`
+for exactly where that split runs inside one phase.
+
+See `docs/phases/README.md` for which phase each person is in at any given time.
 
 ---
 
@@ -252,14 +264,14 @@ Phase 1 freezes `packages/contracts/`; Phases 2, 3 and 4 then build concurrently
 using `tools/scenariogen` as a stand-in for whatever it doesn't yet have from another lane. Full docs
 in `docs/phases/`.
 
-| Phase | Goal | Depends on |
-|---|---|---|
-| 0 — Foundations & Baseline | Site model, forecast ingestion, the greedy baseline controller, frozen contracts | — |
-| 1 — The Loop | One forecast → one solve → one chart, end to end | 0 |
-| 2 — Rolling Horizon Engine | Repeated re-solves, SoC feedback, degradation & run-time constraints, fallback | 1 |
-| 3 — Dispatch, Twin & Ledger | The simulator, the shadow-baseline ledger, alerts | 1 |
-| 4 — Dashboard & Insights | Every panel badged, moving, explainable | 1 |
-| 5 — Hardening & Validation | Multi-scenario backtests, the critical-load proof, a soak run | 2, 3, 4 |
+| Phase | Owner | Goal | Depends on |
+|---|---|---|---|
+| 0 — Foundations & Baseline | Aarin | Site model, forecast ingestion, the greedy baseline controller, frozen contracts | — |
+| 1 — The Loop | ALL | One forecast → one solve → one chart, end to end | 0 |
+| 2 — Rolling Horizon Engine | Aarin | Repeated re-solves, SoC feedback, degradation & run-time constraints, fallback | 1 |
+| 3 — Dispatch, Twin & Ledger | Aarin (twin) / Dhruvi & Kavyan (ledger, alerts) | The simulator, the shadow-baseline ledger, alerts | 1 |
+| 4 — Dashboard & Insights | Yashita | Every panel badged, moving, explainable | 1 |
+| 5 — Hardening & Validation | ALL, Aarin coordinates | Multi-scenario backtests, the critical-load proof, a soak run | 2, 3, 4 |
 
 ---
 

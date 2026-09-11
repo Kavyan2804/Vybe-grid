@@ -3,6 +3,7 @@
 > **Goal:** Prove the thing works under stress, not just on a calm day, and prove the one claim that
 > must never be false: critical load is never dropped.
 > **Status:** Not started
+> **Owner:** ALL — Aarin coordinates (backtests, solver latency, the dockerized soak run) · Dhruvi & Kavyan (critical-load DB proof, soak data-integrity) · Yashita (FE acceptance sweep, 1280×720 layout)
 > **Depends on:** Phases 2, 3 and 4
 > **Demo milestone:** A multi-scenario backtest report showing diesel/cost/CO₂ saved vs baseline
 > across a clear day, a cloudy afternoon, a storm day and a load spike — with zero unmet critical load

@@ -3,6 +3,7 @@
 > **Goal:** Every number the system produces is on screen, badged, and moving; the plan, the actual,
 > and the saving are all one glance apart.
 > **Status:** Not started — can run concurrently with Phases 2 and 3
+> **Owner:** Yashita (frontend)
 > **Depends on:** Phase 1 (contracts frozen; shell, badges and `Panel` exist)
 > **Demo milestone:** Every panel on every route carries a badge, and the savings tile updates live as
 > new ticks land.
