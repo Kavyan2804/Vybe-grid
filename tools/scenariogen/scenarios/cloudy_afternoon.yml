@@ -1,0 +1,6 @@
+name: cloudy_afternoon
+weather_pattern:
+  morning: sunny
+  afternoon: cloudy
+  evening: clear
+load_pattern: normal

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dispatch Plan",
+  "type": "object",
+  "required": ["site_id", "forecast_id", "created_at", "solver_status", "solve_time_ms", "fallback_used", "decisions"],
+  "properties": {
+    "site_id": { "type": "string" },
+    "forecast_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "solver_status": { "type": "string" },
+    "solve_time_ms": { "type": "number", "minimum": 0 },
+    "fallback_used": { "type": "boolean" },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "dispatch_decision.schema.json"
+      },
+      "minItems": 24,
+      "maxItems": 24
+    }
+  },
+  "additionalProperties": false
+}

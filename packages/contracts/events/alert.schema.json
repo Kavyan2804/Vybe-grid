@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Alert",
+  "type": "object",
+  "required": ["id", "site_id", "type", "subject", "status", "created_at", "payload"],
+  "properties": {
+    "id": { "type": "string" },
+    "site_id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "CRITICAL_LOAD_AT_RISK",
+        "LOW_SOC_RESERVE",
+        "DIESEL_REQUIRED_SOON",
+        "SOLVER_FALLBACK_ACTIVE",
+        "FORECAST_STALE",
+        "BASELINE_DIVERGENCE"
+      ]
+    },
+    "subject": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["created", "acknowledged", "resolved"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" },
+    "acknowledged_at": { "type": "string", "format": "date-time" },
+    "resolved_at": { "type": "string", "format": "date-time" },
+    "cooldown_until": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

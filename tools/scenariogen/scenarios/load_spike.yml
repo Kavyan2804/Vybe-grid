@@ -1,0 +1,5 @@
+name: load_spike
+weather_pattern:
+  all_day: sunny
+load_pattern:
+  afternoon: spike

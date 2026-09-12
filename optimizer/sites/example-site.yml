@@ -1,0 +1,26 @@
+name: "Dharavi Microgrid"
+latitude: 19.0380
+longitude: 72.8538
+timezone: "Asia/Kolkata"
+fuel_cost_per_litre: 1.20
+emission_factor_kg_co2_per_litre: 2.68
+battery:
+  capacity_kwh: 100.0
+  max_charge_kw: 25.0
+  max_discharge_kw: 25.0
+  round_trip_efficiency: 0.92
+  degradation_cost_per_kwh_cycled: 0.05
+  soc_min_pct: 10.0
+  soc_max_pct: 90.0
+diesel_generator:
+  min_load_kw: 10.0
+  max_load_kw: 50.0
+  start_cost: 5.0
+  min_uptime_h: 2.0
+  min_downtime_h: 1.0
+  fuel_curve:
+    litres_per_kwh_min_load: 0.35
+    litres_per_kwh_max_load: 0.28
+load:
+  critical_kw: [15.0, 14.0, 13.0, 13.0, 14.0, 16.0, 20.0, 25.0, 28.0, 30.0, 29.0, 28.0, 27.0, 26.0, 25.0, 25.0, 26.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 16.0]
+  flexible_kw: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

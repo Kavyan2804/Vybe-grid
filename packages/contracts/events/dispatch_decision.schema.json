@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dispatch Decision",
+  "type": "object",
+  "required": ["hour", "solar_kw", "battery_kw", "diesel_kw", "load_kw", "diesel_on", "soc_pct", "badges"],
+  "properties": {
+    "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+    "solar_kw": { "type": "number", "minimum": 0 },
+    "battery_kw": { "type": "number" },
+    "diesel_kw": { "type": "number", "minimum": 0 },
+    "load_kw": { "type": "number", "minimum": 0 },
+    "diesel_on": { "type": "boolean" },
+    "soc_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "badges": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["LIVE", "FORECAST", "SIMULATED", "BASELINE"]
+      }
+    },
+    "reason": { "type": "string" }
+  },
+  "additionalProperties": false
+}

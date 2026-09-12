@@ -1,0 +1,4 @@
+name: storm_day
+weather_pattern:
+  all_day: heavy_cloud
+load_pattern: normal
