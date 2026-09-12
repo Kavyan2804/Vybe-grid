@@ -61,6 +61,25 @@ async def list_alerts(
 
 
 @router.get(
+    "/alerts/active",
+    response_model=AlertListResponse,
+    summary="List active alerts",
+    description="List created and acknowledged alerts that have not been resolved.",
+    response_description="Active alerts from the local in-memory service.",
+    responses=OPENAPI_ERROR_RESPONSES,
+)
+async def list_active_alerts(
+    site_id: str | None = Query(None, min_length=1),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> AlertListResponse:
+    """Return active alerts with deterministic pagination."""
+
+    active = alert_service.list_active_alerts(site_id=site_id)
+    return AlertListResponse(total=len(active), items=active[offset : offset + limit])
+
+
+@router.get(
     "/alerts/{alert_id}",
     response_model=Alert,
     summary="Get an alert",
