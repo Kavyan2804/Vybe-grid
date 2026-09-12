@@ -1,9 +1,6 @@
-"""
-Application settings — reads from environment / .env file.
+"""Application settings — reads from environment / .env file.
 
 Every variable here corresponds to a line in .env.example at the repo root.
-Database-session setup is NOT here — that belongs in optimizer/infrastructure/db/
-and will be owned by Dhruvi.
 """
 
 from __future__ import annotations
@@ -23,6 +20,13 @@ class Settings(BaseSettings):
     # ── Database ────────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://gridpilot:gridpilot@localhost:5432/gridpilot"
 
+    # Convenience: Alembic needs a sync driver URL.
+    @property
+    def database_url_sync(self) -> str:
+        return self.database_url.replace(
+            "postgresql+asyncpg", "postgresql+psycopg2"
+        )
+
     # ── Rolling horizon (PRD.md §4, §14) ────────────────────────────────
     tick_interval_minutes: int = 60
     horizon_hours: int = 24
@@ -38,6 +42,10 @@ class Settings(BaseSettings):
     default_site_id: str = "example-site"
 
 
+_settings = Settings()
+settings = _settings
+
+
 def get_settings() -> Settings:
     """Return a cached Settings instance.
 
@@ -45,7 +53,3 @@ def get_settings() -> Settings:
     override this with a custom Settings object.
     """
     return _settings
-
-
-_settings = Settings()
-

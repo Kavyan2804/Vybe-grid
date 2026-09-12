@@ -48,7 +48,10 @@ The most recent 24-hour dispatch plan.
 ```jsonc
 {
   "plan_id": "plan_000482",
+<<<<<<< HEAD
   "forecast_id": "forecast_000482",
+=======
+>>>>>>> origin/phase1-database
   "site_id": "site-001",
   "tick_at": "2026-01-14T09:00:00+05:30",
   "starting_soc_kwh": 12.4,
@@ -76,8 +79,12 @@ The most recent 24-hour dispatch plan.
   ],
   "objective_cost": 812.4,
   "solver_status": "optimal",
+<<<<<<< HEAD
   "solve_ms": 4210,
   "fallback_used": false
+=======
+  "solve_ms": 4210
+>>>>>>> origin/phase1-database
 }
 ```
 
@@ -166,10 +173,13 @@ modelled estimate.
       "title": "Diesel start planned within 2 hours",
       "raised_at": "2026-01-14T09:00:00+05:30",
       "received_at": "2026-01-14T09:00:04+05:30",
+<<<<<<< HEAD
       "payload": {},
       "acknowledged_at": null,
       "resolved_at": null,
       "cooldown_until": null,
+=======
+>>>>>>> origin/phase1-database
       "badges": ["FORECAST"]
     }
   ]

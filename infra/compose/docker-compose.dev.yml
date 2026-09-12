@@ -1,0 +1,23 @@
+# DB-only compose for local development.
+# Usage:  docker compose -f infra/compose/docker-compose.dev.yml up -d
+# The named volume `gridpilot_db_data` survives `compose down && compose up`.
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gridpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gridpilot}
+      POSTGRES_DB: ${POSTGRES_DB:-gridpilot}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - gridpilot_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gridpilot} -d ${POSTGRES_DB:-gridpilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gridpilot_db_data:
