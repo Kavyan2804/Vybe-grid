@@ -12,8 +12,10 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.alerts import router as alerts_router
+from src.api.events import router as events_router
 from src.api.health import router as health_router
 from src.api.plans import router as plans_router
+from src.api.savings import router as savings_router
 from src.api.sites import router as sites_router
 from src.errors import BackendError
 from src.openapi import OPENAPI_TAGS
@@ -119,5 +121,7 @@ async def internal_error_handler(request: Request, _exc: Exception) -> JSONRespo
 
 app.include_router(health_router, prefix="/api")
 app.include_router(plans_router, prefix="/api")
+app.include_router(savings_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
+app.include_router(events_router, prefix="/api")
 app.include_router(sites_router, prefix="/api")
