@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -13,26 +15,62 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.alerts import router as alerts_router
 from src.api.events import router as events_router
+from src.api.forecasts import router as forecasts_router
 from src.api.health import router as health_router
+from src.api.overview import router as overview_router
 from src.api.plans import router as plans_router
 from src.api.savings import router as savings_router
 from src.api.sites import router as sites_router
+from src.api.telemetry import router as telemetry_router
+from src.api.tick import router as tick_router
+from src.config.settings import get_settings
 from src.errors import BackendError
 from src.openapi import OPENAPI_TAGS
+from src.scheduler.tick import RollingScheduler
+from src.services.optimizer_bridge import scheduled_tick
+
+_logger = logging.getLogger("gridpilot.main")
+_scheduler: RollingScheduler | None = None
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Start the rolling-horizon scheduler on boot, stop it cleanly on shutdown.
+
+    This is the piece that was missing through Phase 2 and Phase 3: the optimizer and the
+    real database both existed, but nothing ever called one on a schedule against the other.
+    See docs/architecture/optimizer_bridge notes in `src/services/optimizer_bridge.py`.
+    """
+    global _scheduler
+    settings = get_settings()
+    _scheduler = RollingScheduler(tick_callback=scheduled_tick)
+    _scheduler.schedule_site(settings.default_site_id)
+    _scheduler.start()
+    _logger.info(
+        "rolling-horizon scheduler started site_id=%s interval_minutes=%s",
+        settings.default_site_id,
+        _scheduler.interval_minutes,
+    )
+    try:
+        yield
+    finally:
+        if _scheduler is not None:
+            _scheduler.shutdown()
+
 
 app = FastAPI(
-    title="Vybe-grid Phase 1 Backend API",
-    version="0.1.0-phase1",
-    summary="Local FastAPI foundation for renewable-energy intelligence workflows.",
+    title="GridPilot Backend API",
+    version="0.2.0",
+    summary="Rolling-horizon microgrid dispatch — API, scheduler and realtime layer.",
     description=(
-        "The Vybe-grid Phase 1 backend provides typed site configuration, forecast input, "
-        "alert management, and development-only mock plan APIs. "
-        "Site, alert, and mock plan data are held in memory for local development and tests. "
-        "Mock plans are deterministic and explicitly marked with solver_status='mock'; "
-        "they are not optimized results. No database, external forecast provider, or real "
-        "optimizer is connected in this phase."
+        "Serves the frozen API_CONTRACT.md surface over the real Postgres database. The "
+        "rolling-horizon optimizer runs on a schedule (see `src/services/optimizer_bridge.py`) "
+        "against the digital twin (Simulated tier — PRD.md §9); every value it produces is "
+        "badged SIMULATED, never presented as live hardware telemetry. `/plans/mock` remains "
+        "for development only and is explicitly marked with solver_status='mock'."
     ),
     openapi_tags=OPENAPI_TAGS,
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -120,8 +158,12 @@ async def internal_error_handler(request: Request, _exc: Exception) -> JSONRespo
 
 
 app.include_router(health_router, prefix="/api")
+app.include_router(overview_router, prefix="/api")
 app.include_router(plans_router, prefix="/api")
+app.include_router(telemetry_router, prefix="/api")
+app.include_router(forecasts_router, prefix="/api")
 app.include_router(savings_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(sites_router, prefix="/api")
+app.include_router(tick_router, prefix="/api")

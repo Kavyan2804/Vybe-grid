@@ -20,6 +20,7 @@ from optimizer.domain.ports import (
     ForecastPort,
     OptimizerPort,
     DispatchPort,
+    ExecutionRepository,
     PlanRepository,
     TelemetryRepository,
     AlertPort,
@@ -38,6 +39,7 @@ class RollingHorizonService:
         dispatch_port: DispatchPort,
         plan_repository: PlanRepository,
         telemetry_repository: TelemetryRepository,
+        execution_repository: Optional[ExecutionRepository] = None,
         alert_port: Optional[AlertPort] = None,
         default_initial_soc_pct: float = 50.0,
         solve_timeout_seconds: float = 20.0,
@@ -48,6 +50,7 @@ class RollingHorizonService:
         self.dispatch_port = dispatch_port
         self.plan_repository = plan_repository
         self.telemetry_repository = telemetry_repository
+        self.execution_repository = execution_repository
         self.alert_port = alert_port
         self.default_initial_soc_pct = default_initial_soc_pct
         self.solve_timeout_seconds = solve_timeout_seconds
@@ -106,14 +109,20 @@ class RollingHorizonService:
 
         # 5. Execute hour 0 decision via DispatchPort
         hour_0_decision = plan.decisions[0]
-        actual_telemetry = self.dispatch_port.execute(
+        actual_state = self.dispatch_port.execute(
             site=self.site,
             decision=hour_0_decision,
             current_soc_pct=starting_soc_pct,
         )
 
-        # 6. Record actual telemetry
-        self.telemetry_repository.record(actual_telemetry)
+        actual_telemetry = actual_state.to_telemetry()
+
+        # Persist telemetry and the hour-0 execution together when the
+        # persistence layer provides a transaction-bound unit of work.
+        if self.execution_repository is not None:
+            self.execution_repository.record_execution(plan, hour_0_decision, actual_state)
+        else:
+            self.telemetry_repository.record(actual_telemetry)
 
         # 7. Run shadow baseline for comparison
         hour_0_load = forecast.load_kw[0] if forecast.load_kw else 10.0

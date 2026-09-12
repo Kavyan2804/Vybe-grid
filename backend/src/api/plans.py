@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import get_settings
+from src.db.repositories.dispatch_plans import DispatchPlanRepository
+from src.db.repositories.sites import SiteRepository
+from src.db.session import get_db_session
 from src.openapi import OPENAPI_ERROR_RESPONSES
-from src.schemas.plans import DispatchPlanResponse, MockPlan, MockPlanRequest
+from src.schemas.plans import DispatchPlanResponse, MockPlan, MockPlanRequest, PlanSeriesItem
 from src.services.mock_plan_service import MockPlanNotFoundError, mock_plan_service
 
 router = APIRouter(tags=["plans"])
@@ -86,45 +90,48 @@ async def get_mock_plan(plan_id: str) -> MockPlan:
 @router.get(
     "/plans/latest",
     response_model=DispatchPlanResponse,
-    summary="Get the Phase 1 placeholder plan",
-    description="Return the existing Phase 1 placeholder response. It is pending optimizer integration and contains no dispatch series.",
-    response_description="Placeholder plan marked pending_integration.",
+    summary="Get the latest rolling-horizon dispatch plan",
+    description="The most recent 24-hour plan the rolling scheduler produced for this site.",
     responses=OPENAPI_ERROR_RESPONSES,
 )
 async def get_latest_plan(
     site_id: str = Query(
         default="",
         description="Site ID to query. Defaults to DEFAULT_SITE_ID from settings.",
-    )
+    ),
+    session: AsyncSession = Depends(get_db_session),
 ) -> DispatchPlanResponse:
     """Fetch the most recent 24-hour dispatch plan for a microgrid site.
 
-    Per API_CONTRACT.md §2:
-    Returns the latest solved dispatch plan with hourly series and provenance badges.
+    Per API_CONTRACT.md §2: returns the latest solved dispatch plan with hourly series and
+    provenance badges. `series` items are stored exactly as
+    `backend/src/services/optimizer_bridge.py::decision_to_series_item` produced them, so this
+    endpoint is a straight read — no further mapping happens here.
     """
     settings = get_settings()
     active_site_id = site_id.strip() if site_id.strip() else settings.default_site_id
 
-    # -----------------------------------------------------------------------
-    # Phase 1 Temporary Response:
-    #
-    # TODO (Dhruvi): Integrate with database PlanRepository:
-    #   plan = await plan_repository.latest(site_id=active_site_id)
-    #   if not plan:
-    #       raise HTTPException(status_code=404, detail={"error": "not_found", "message": f"Site or plan '{active_site_id}' not found."})
-    #
-    # TODO (Aarin): Integrate with rolling_horizon_service / OptimizerPort:
-    #   Trigger or read actual 24-hour MILP solved plan with real series.
-    #
-    # Strictly adheres to PRD.md §3 (no fabricated numbers or fake curves).
-    # -----------------------------------------------------------------------
+    plan_repo = DispatchPlanRepository(session)
+    row = await plan_repo.get_latest_for_site(active_site_id)
+    if row is None:
+        return DispatchPlanResponse(
+            plan_id=f"plan_{active_site_id}_none",
+            site_id=active_site_id,
+            tick_at=datetime.now(UTC).isoformat(),
+            starting_soc_kwh=0.0,
+            series=[],
+            objective_cost=0.0,
+            solver_status="no_plan_yet",
+            solve_ms=0,
+        )
+
     return DispatchPlanResponse(
-        plan_id=f"plan_{active_site_id}_phase1",
-        site_id=active_site_id,
-        tick_at=datetime.now(UTC).isoformat(),
-        starting_soc_kwh=0.0,
-        series=[],
-        objective_cost=0.0,
-        solver_status="pending_integration",
-        solve_ms=0,
+        plan_id=f"plan_{row.id:06d}",
+        site_id=row.site_id,
+        tick_at=row.tick_at.isoformat(),
+        starting_soc_kwh=row.starting_soc_kwh,
+        series=[PlanSeriesItem(**item) for item in row.series],
+        objective_cost=row.objective_cost or 0.0,
+        solver_status=row.solver_status,
+        solve_ms=row.solve_ms or 0,
     )

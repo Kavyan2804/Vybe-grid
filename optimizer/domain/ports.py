@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Protocol, Sequence, Optional
-from .entities import Site, Forecast, DispatchDecision, DispatchPlan
+from .entities import ActualState, Site, Forecast, DispatchDecision, DispatchPlan
 
 
 class ForecastPort(ABC):
@@ -37,7 +37,7 @@ class DispatchPort(ABC):
     @abstractmethod
     def execute(
         self, site: Site, decision: DispatchDecision, current_soc_pct: float
-    ) -> Dict[str, Any]:
+    ) -> ActualState:
         pass
 
 
@@ -59,6 +59,15 @@ class TelemetryRepository(Protocol):
 
     def latest_soc(self, site_id: str) -> Optional[float]:
         """Return latest measured SoC in kWh or percent."""
+        ...
+
+
+class ExecutionRepository(Protocol):
+    """Atomically persist an executed decision and its actual telemetry."""
+
+    def record_execution(
+        self, plan: DispatchPlan, decision: DispatchDecision, actual: ActualState
+    ) -> None:
         ...
 
 

@@ -63,3 +63,4 @@ class RollingScheduler:
         if self._is_running:
             self.scheduler.shutdown(wait=False)
             self._is_running = False
+

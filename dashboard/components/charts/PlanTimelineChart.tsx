@@ -31,6 +31,9 @@ export interface DispatchPlanResponse {
 export interface PlanTimelineChartProps {
   siteId?: string;
   initialData?: DispatchPlanResponse;
+  /** Bump this (e.g. on an SSE plan.updated event, or a manual refresh) to force a refetch
+   * without touching siteId. */
+  refreshToken?: number | string;
 }
 
 // Fallback scenario mock data conforming to packages/contracts API_CONTRACT.md §2
@@ -283,6 +286,7 @@ const MOCK_DISPATCH_PLAN: DispatchPlanResponse = {
 export const PlanTimelineChart: React.FC<PlanTimelineChartProps> = ({
   siteId = 'site-001',
   initialData,
+  refreshToken,
 }) => {
   const [data, setData] = useState<DispatchPlanResponse>(initialData || MOCK_DISPATCH_PLAN);
   const [loading, setLoading] = useState<boolean>(!initialData);
@@ -317,14 +321,14 @@ export const PlanTimelineChart: React.FC<PlanTimelineChartProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [siteId]);
+  }, [siteId, refreshToken]);
 
   const activeHourItem = selectedHour || data.series[2] || data.series[0];
 
   return (
     <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
       {/* Header & Badges */}
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100" className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5 flex-wrap">
           <h2 className="font-sans text-[18px] text-slate-900 font-bold tracking-tight">
             24h Dispatch Plan
@@ -513,24 +517,24 @@ export const PlanTimelineChart: React.FC<PlanTimelineChartProps> = ({
             {/* Metrics with explicit Badges */}
             <div className="flex items-center gap-4 flex-wrap font-mono text-[12px]">
               <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded border border-slate-200">
-                <span class="text-slate-500">Solar:</span>
+                <span className="text-slate-500">Solar:</span>
                 <span className="font-bold text-slate-900">{activeHourItem.solar_used_kw} kW</span>
                 <Badge kind={activeHourItem.executed ? 'SIMULATED' : 'FORECAST'} />
               </div>
               <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded border border-slate-200">
-                <span class="text-slate-500">BESS:</span>
+                <span className="text-slate-500">BESS:</span>
                 <span className="font-bold text-blue-700">
                   {activeHourItem.batt_charge_kw > 0 ? `+${activeHourItem.batt_charge_kw}` : `-${activeHourItem.batt_discharge_kw}`} kW
                 </span>
                 <Badge kind={activeHourItem.executed ? 'SIMULATED' : 'FORECAST'} />
               </div>
               <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded border border-slate-200">
-                <span class="text-slate-500">Diesel:</span>
+                <span className="text-slate-500">Diesel:</span>
                 <span className="font-bold text-slate-700">{activeHourItem.diesel_kw} kW</span>
                 <Badge kind={activeHourItem.executed ? 'SIMULATED' : 'FORECAST'} />
               </div>
               <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded border border-slate-200">
-                <span class="text-slate-500">SoC:</span>
+                <span className="text-slate-500">SoC:</span>
                 <span className="font-bold text-emerald-800">{activeHourItem.soc_kwh} kWh</span>
                 <Badge kind={activeHourItem.executed ? 'SIMULATED' : 'FORECAST'} />
               </div>

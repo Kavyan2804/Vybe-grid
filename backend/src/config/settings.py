@@ -39,7 +39,11 @@ class Settings(BaseSettings):
     dispatch_adapter: str = "simulator"
 
     # ── Site ────────────────────────────────────────────────────────────
-    default_site_id: str = "example-site"
+    # Must equal the site config's `name:` field (optimizer/sites/example-site.yml) — the
+    # optimizer uses `site.name` as its site_id everywhere (rolling_horizon_service.py,
+    # optimizer_pyomo/adapter.py), so the backend follows that convention rather than
+    # introducing a second identity until there's a real multi-site slug to map from.
+    default_site_id: str = "Dharavi Microgrid"
 
 
 _settings = Settings()

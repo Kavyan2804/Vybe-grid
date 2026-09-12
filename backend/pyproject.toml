@@ -14,6 +14,13 @@ dependencies = [
     "pydantic-settings>=2.3",
     "python-multipart>=0.0.9",
     "pyyaml>=6.0",
+    "apscheduler>=3.10",
+    # The scheduler calls into optimizer/ (backend/src/services/optimizer_bridge.py) in-process,
+    # so its dependencies have to be installed here too — there is no packaging boundary between
+    # the two at runtime, only at the directory-ownership level (REPO_STRUCTURE.md §10).
+    "pyomo>=6.7",
+    "highspy>=1.7",
+    "jsonschema>=4.22",
 ]
 
 [project.optional-dependencies]

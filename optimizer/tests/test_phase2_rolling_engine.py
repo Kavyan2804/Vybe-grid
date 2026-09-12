@@ -428,3 +428,4 @@ def test_fast_forward_simulation(base_site):
     assert len(results) == 4
     assert len(plan_repo.list_for_site(base_site.name)) == 4
     assert len(telemetry_repo.list_for_site(base_site.name)) == 4
+

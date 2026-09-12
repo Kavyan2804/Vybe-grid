@@ -3,8 +3,8 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from typing import List, NamedTuple
-from datetime import datetime
+from typing import Any, List, NamedTuple
+from datetime import datetime, timezone
 from jsonschema import Draft202012Validator
 
 class FuelCurve(NamedTuple):
@@ -78,6 +78,43 @@ class DispatchPlan:
     solver_status: str
     solve_time_ms: float
     fallback_used: bool
+
+
+@dataclass(frozen=True)
+class ActualState:
+    """One realized one-hour dispatch interval produced by a DispatchPort."""
+
+    site_id: str
+    recorded_at: datetime
+    solar_kw: float
+    battery_kw: float
+    diesel_kw: float
+    load_kw: float
+    load_served_kw: float
+    unmet_load_kw: float
+    soc_pct: float
+    diesel_on: bool
+    fuel_litres: float
+    fuel_cost: float
+    emissions_kg_co2: float
+    source: str
+    badges: List[str]
+    simulation_run_id: str | None = None
+    interval_hours: float = 1.0
+
+    def to_telemetry(self) -> dict[str, Any]:
+        """Return the additive-free payload required by telemetry.schema.json."""
+        return {
+            "site_id": self.site_id,
+            "recorded_at": self.recorded_at.astimezone(timezone.utc).isoformat(),
+            "solar_kw": self.solar_kw,
+            "battery_kw": self.battery_kw,
+            "diesel_kw": self.diesel_kw,
+            "load_kw": self.load_kw,
+            "soc_pct": self.soc_pct,
+            "diesel_on": self.diesel_on,
+            "source": self.source,
+        }
 
 def load_site_from_yaml(path: str) -> Site:
     """Load a Site entity from a YAML configuration file.

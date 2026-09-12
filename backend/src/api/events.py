@@ -8,10 +8,12 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
-from src.realtime.broadcaster import InMemoryBroadcaster, RealtimeEvent
+from src.realtime.broadcaster import RealtimeEvent, broadcaster
 
 router = APIRouter(tags=["realtime"])
-broadcaster = InMemoryBroadcaster()
+# Was `broadcaster = InMemoryBroadcaster()` — a second, unrelated instance from the module-level
+# singleton in broadcaster.py. Nothing published to the singleton would ever have reached a
+# subscriber here; every SSE connection was listening to a broadcaster nothing wrote to.
 
 
 @router.get(

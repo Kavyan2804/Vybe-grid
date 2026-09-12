@@ -5,8 +5,8 @@ Allows full execution of the rolling-horizon loop with zero external database de
 """
 
 from typing import Dict, Any, List, Optional
-from optimizer.domain.entities import DispatchPlan
-from optimizer.domain.ports import PlanRepository, TelemetryRepository, AlertPort
+from optimizer.domain.entities import ActualState, DispatchDecision, DispatchPlan
+from optimizer.domain.ports import AlertPort, ExecutionRepository, PlanRepository, TelemetryRepository
 
 
 class InMemoryPlanRepository(PlanRepository):
@@ -64,4 +64,25 @@ class InMemoryAlertSink(AlertPort):
             "type": alert_type,
             "subject": subject,
             "payload": payload or {},
+        })
+
+
+class InMemoryExecutionRepository(ExecutionRepository):
+    """In-memory stand-in for the Phase 3 telemetry/dispatch-log unit of work."""
+
+    def __init__(self, telemetry_repository: InMemoryTelemetryRepository) -> None:
+        self._telemetry_repository = telemetry_repository
+        self.dispatch_logs: List[Dict[str, Any]] = []
+
+    def record_execution(
+        self, plan: DispatchPlan, decision: DispatchDecision, actual: ActualState
+    ) -> None:
+        telemetry = actual.to_telemetry()
+        self._telemetry_repository.record(telemetry)
+        self.dispatch_logs.append({
+            "site_id": plan.site_id,
+            "plan_forecast_id": plan.forecast_id,
+            "hour_index": decision.hour,
+            "executed_at": telemetry["recorded_at"],
+            "decision": decision,
         })
