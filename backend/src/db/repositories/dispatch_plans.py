@@ -4,6 +4,10 @@ Key query: ``get_latest_for_site(site_id)`` — backs
 ``GET /api/plans/latest?site_id=`` (API_CONTRACT.md §2).
 """
 
+from __future__ import annotations
+
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,13 +43,24 @@ class DispatchPlanRepository:
         return result.scalar_one_or_none()
 
     async def list_for_site(
-        self, site_id: str, *, limit: int = 50
+        self,
+        site_id: str,
+        *,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 50,
     ) -> list[DispatchPlan]:
-        stmt = (
-            select(DispatchPlan)
-            .where(DispatchPlan.site_id == site_id)
-            .order_by(DispatchPlan.tick_at.desc())
-            .limit(limit)
-        )
+        """Return plans for *site_id*, chronologically ascending.
+
+        *start_time* and *end_time* are inclusive/exclusive bounds on
+        ``tick_at``: ``[start_time, end_time)``.  Omit either to leave that
+        end open.  Used by the ledger service for savings comparisons.
+        """
+        stmt = select(DispatchPlan).where(DispatchPlan.site_id == site_id)
+        if start_time is not None:
+            stmt = stmt.where(DispatchPlan.tick_at >= start_time)
+        if end_time is not None:
+            stmt = stmt.where(DispatchPlan.tick_at < end_time)
+        stmt = stmt.order_by(DispatchPlan.tick_at.asc()).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

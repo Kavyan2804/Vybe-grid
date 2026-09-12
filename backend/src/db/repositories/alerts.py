@@ -1,9 +1,13 @@
 """Alert repository — CRUD + lifecycle transitions."""
 
+from __future__ import annotations
+
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models.alerts import Alert, AlertState
+from src.db.exceptions import DuplicateResourceError
+from src.db.models.alerts import Alert, AlertState, AlertType
 
 
 class AlertRepository:
@@ -14,11 +18,44 @@ class AlertRepository:
 
     async def create(self, alert: Alert) -> Alert:
         self._session.add(alert)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            err_str = str(e.orig)
+            if "UniqueViolationError" in err_str or "23505" in err_str:
+                raise DuplicateResourceError(f"Duplicate alert key: {alert.id}") from e
+            raise
         return alert
 
     async def get_by_id(self, alert_id: str) -> Alert | None:
         return await self._session.get(Alert, alert_id)
+
+    async def find_duplicate(
+        self,
+        site_id: str,
+        alert_type: AlertType,
+        subject: str | None,
+    ) -> Alert | None:
+        """Return an existing non-resolved alert with the same dedup key.
+
+        Dedup key: ``(site_id, type, subject)`` — mirrors the partial unique
+        index ``alerts_open_uniq`` on the DB (DATA_MODEL.md §5).
+
+        Kavyan calls this *before* attempting an insert to avoid relying
+        solely on catching ``IntegrityError``.  The DB constraint is still
+        the authoritative guard; this method lets the service layer produce
+        a friendlier response than a raw constraint violation.
+        """
+        stmt = (
+            select(Alert)
+            .where(Alert.site_id == site_id)
+            .where(Alert.type == alert_type)
+            .where(Alert.subject == subject)
+            .where(Alert.state != AlertState.RESOLVED)
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list_for_site(
         self,
