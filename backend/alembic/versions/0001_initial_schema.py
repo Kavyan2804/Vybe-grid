@@ -18,7 +18,7 @@ Create Date: 2026-09-12
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, TIMESTAMP
 
 # revision identifiers
 revision = "0001"
@@ -29,7 +29,7 @@ depends_on = None
 
 def upgrade() -> None:
     # ---------- Enums ----------
-    alert_type_enum = sa.Enum(
+    ENUM(
         "DIESEL_REQUIRED_SOON",
         "SOC_LOW",
         "SOLAR_FORECAST_STALE",
@@ -37,15 +37,31 @@ def upgrade() -> None:
         "SOLVER_INFEASIBLE",
         "DIESEL_RUNTIME_EXCEEDED",
         name="alert_type",
-    )
-    alert_state_enum = sa.Enum(
+    ).create(op.get_bind(), checkfirst=True)
+    ENUM(
         "created",
         "acknowledged",
         "resolved",
         name="alert_state",
+    ).create(op.get_bind(), checkfirst=True)
+
+    alert_type_enum = ENUM(
+        "DIESEL_REQUIRED_SOON",
+        "SOC_LOW",
+        "SOLAR_FORECAST_STALE",
+        "SOLVER_FALLBACK_ACTIVE",
+        "SOLVER_INFEASIBLE",
+        "DIESEL_RUNTIME_EXCEEDED",
+        name="alert_type",
+        create_type=False,
     )
-    alert_type_enum.create(op.get_bind(), checkfirst=True)
-    alert_state_enum.create(op.get_bind(), checkfirst=True)
+    alert_state_enum = ENUM(
+        "created",
+        "acknowledged",
+        "resolved",
+        name="alert_state",
+        create_type=False,
+    )
 
     # ---------- §1  Sites & configuration ----------
     op.create_table(
@@ -116,9 +132,9 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("config_version", sa.Integer(), nullable=False),
-        sa.Column("starting_soc_kwh", sa.Real(), nullable=False),
+        sa.Column("starting_soc_kwh", sa.Float(), nullable=False),
         sa.Column("series", JSONB(), nullable=False),
-        sa.Column("objective_cost", sa.Real(), nullable=True),
+        sa.Column("objective_cost", sa.Float(), nullable=True),
         sa.Column("solver_status", sa.Text(), nullable=False),
         sa.Column("solve_ms", sa.Integer(), nullable=True),
         sa.Column("source", sa.Text(), nullable=False),
@@ -142,12 +158,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("at", TIMESTAMP(timezone=True), nullable=False),
-        sa.Column("soc_kwh", sa.Real(), nullable=False),
+        sa.Column("soc_kwh", sa.Float(), nullable=False),
         sa.Column("diesel_on", sa.Boolean(), nullable=False),
-        sa.Column("diesel_kw", sa.Real(), nullable=False),
-        sa.Column("batt_kw", sa.Real(), nullable=False),
-        sa.Column("solar_kw", sa.Real(), nullable=False),
-        sa.Column("load_kw", sa.Real(), nullable=False),
+        sa.Column("diesel_kw", sa.Float(), nullable=False),
+        sa.Column("batt_kw", sa.Float(), nullable=False),
+        sa.Column("solar_kw", sa.Float(), nullable=False),
+        sa.Column("load_kw", sa.Float(), nullable=False),
         sa.Column("source", sa.Text(), nullable=False),
         sa.Column("config_version", sa.Integer(), nullable=False),
     )
@@ -177,12 +193,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("at", TIMESTAMP(timezone=True), nullable=False),
-        sa.Column("soc_kwh", sa.Real(), nullable=False),
+        sa.Column("soc_kwh", sa.Float(), nullable=False),
         sa.Column("diesel_on", sa.Boolean(), nullable=False),
-        sa.Column("diesel_kw", sa.Real(), nullable=False),
-        sa.Column("batt_kw", sa.Real(), nullable=False),
-        sa.Column("solar_kw", sa.Real(), nullable=False),
-        sa.Column("load_kw", sa.Real(), nullable=False),
+        sa.Column("diesel_kw", sa.Float(), nullable=False),
+        sa.Column("batt_kw", sa.Float(), nullable=False),
+        sa.Column("solar_kw", sa.Float(), nullable=False),
+        sa.Column("load_kw", sa.Float(), nullable=False),
         sa.Column("source", sa.Text(), nullable=False, server_default="baseline"),
         sa.Column("config_version", sa.Integer(), nullable=False),
     )

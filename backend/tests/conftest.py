@@ -15,7 +15,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from testcontainers.postgres import PostgresContainer
+try:
+    from testcontainers.postgres import PostgresContainer
+except ImportError:
+    from testcontainers.community.postgres import PostgresContainer
 
 
 # ---------------------------------------------------------------------------

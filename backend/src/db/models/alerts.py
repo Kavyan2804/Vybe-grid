@@ -47,6 +47,7 @@ class AlertState(str, enum.Enum):
 alert_type_enum = Enum(
     AlertType,
     name="alert_type",
+    values_callable=lambda x: [e.value for e in x],
     create_constraint=True,
     metadata=Base.metadata,
     schema=None,
@@ -54,6 +55,7 @@ alert_type_enum = Enum(
 alert_state_enum = Enum(
     AlertState,
     name="alert_state",
+    values_callable=lambda x: [e.value for e in x],
     create_constraint=True,
     metadata=Base.metadata,
     schema=None,

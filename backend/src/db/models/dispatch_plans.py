@@ -42,12 +42,12 @@ class DispatchPlan(Base):
     )  # the exact forecast this plan was solved against
     config_version: Mapped[int] = mapped_column(Integer, nullable=False)
     starting_soc_kwh: Mapped[float] = mapped_column(
-        Real, nullable=False
+        Float, nullable=False
     )  # read from telemetry, never from a previous plan (ARCHITECTURE.md §4)
     series: Mapped[dict] = mapped_column(
         JSONB, nullable=False
     )  # 24 hourly decisions — see API_CONTRACT.md §2
-    objective_cost: Mapped[float] = mapped_column(Real, nullable=True)
+    objective_cost: Mapped[float] = mapped_column(Float, nullable=True)
     solver_status: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # "optimal" | "feasible" | "infeasible" | "timeout"

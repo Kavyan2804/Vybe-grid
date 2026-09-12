@@ -5,7 +5,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     Integer,
-    Real,
+    Float,
     Text,
 )
 from sqlalchemy.dialects.postgresql import TIMESTAMP
@@ -32,14 +32,14 @@ class Telemetry(Base):
     at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False
     )
-    soc_kwh: Mapped[float] = mapped_column(Real, nullable=False)
+    soc_kwh: Mapped[float] = mapped_column(Float, nullable=False)
     diesel_on: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    diesel_kw: Mapped[float] = mapped_column(Real, nullable=False)
+    diesel_kw: Mapped[float] = mapped_column(Float, nullable=False)
     batt_kw: Mapped[float] = mapped_column(
-        Real, nullable=False
+        Float, nullable=False
     )  # signed — positive charging, negative discharging
-    solar_kw: Mapped[float] = mapped_column(Real, nullable=False)
-    load_kw: Mapped[float] = mapped_column(Real, nullable=False)
+    solar_kw: Mapped[float] = mapped_column(Float, nullable=False)
+    load_kw: Mapped[float] = mapped_column(Float, nullable=False)
     source: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # "simulator" | "hardware" | "fallback"

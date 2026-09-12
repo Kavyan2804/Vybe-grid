@@ -110,3 +110,42 @@ async def test_unique_constraint_site_id_tick_at(db_session: AsyncSession) -> No
     with pytest.raises(IntegrityError):
         await repo.create(DispatchPlan(**plan_kwargs))
         await db_session.flush()
+
+@pytest.mark.asyncio
+async def test_get_latest_returns_chronological_latest(db_session: AsyncSession) -> None:
+    """Verify get_latest_for_site orders by tick_at descending."""
+    site = await _seed_site(db_session, "latest-site")
+    forecast = await _seed_forecast(db_session, site.id)
+    repo = DispatchPlanRepository(db_session)
+
+    # Insert 10:30 plan
+    await repo.create(DispatchPlan(
+        site_id=site.id,
+        tick_at=datetime(2026, 1, 1, 10, 30, tzinfo=timezone.utc),
+        forecast_id=forecast.id,
+        config_version=1,
+        starting_soc_kwh=10.0,
+        series=[],
+        objective_cost=100.0,
+        solver_status="optimal",
+        solve_ms=100,
+        source="milp"
+    ))
+
+    # Insert 12:00 plan
+    await repo.create(DispatchPlan(
+        site_id=site.id,
+        tick_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+        forecast_id=forecast.id,
+        config_version=1,
+        starting_soc_kwh=10.0,
+        series=[],
+        objective_cost=100.0,
+        solver_status="optimal",
+        solve_ms=100,
+        source="milp"
+    ))
+
+    latest = await repo.get_latest_for_site(site.id)
+    assert latest is not None
+    assert latest.tick_at == datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)

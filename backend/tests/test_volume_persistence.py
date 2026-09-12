@@ -22,14 +22,20 @@ import time
 import psycopg2
 import pytest
 
-COMPOSE_FILE = "infra/compose/docker-compose.dev.yml"
-# Relative to the repo root — tests should be run from the repo root.
+from pathlib import Path
+
+import os
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+COMPOSE_FILE = str(REPO_ROOT / "infra" / "compose" / "docker-compose.dev.yml")
 COMPOSE_CMD = ["docker", "compose", "-f", COMPOSE_FILE]
-DSN = "host=localhost port=5432 dbname=gridpilot user=gridpilot password=gridpilot"
+PORT = os.environ.get("POSTGRES_PORT", "5433")
+DSN = f"host=localhost port={PORT} dbname=gridpilot user=gridpilot password=gridpilot"
 
 
 def _compose(*args: str) -> None:
-    subprocess.run([*COMPOSE_CMD, *args], check=True, capture_output=True)
+    env = {**os.environ, "POSTGRES_PORT": PORT}
+    subprocess.run([*COMPOSE_CMD, *args], check=True, capture_output=True, env=env)
 
 
 def _wait_for_pg(timeout: int = 30) -> None:
