@@ -10,19 +10,10 @@ export type PlanTimelinePoint = {
 };
 
 type PlanTimelineChartProps = {
-  points?: PlanTimelinePoint[];
+  points: PlanTimelinePoint[];
 };
 
-const defaultPoints: PlanTimelinePoint[] = [
-  { hour: '14:00', solarKw: 4.1, batteryKw: 1.8, dieselKw: 0, demandKw: 2.3, status: 'live' },
-  { hour: '16:00', solarKw: 1.2, batteryKw: 1.1, dieselKw: 0, demandKw: 2.7, status: 'forecast' },
-  { hour: '18:00', solarKw: 0, batteryKw: 1.8, dieselKw: 1.4, demandKw: 3.2, status: 'forecast' },
-  { hour: '20:00', solarKw: 0, batteryKw: 1.5, dieselKw: 0.6, demandKw: 2.1, status: 'forecast' },
-  { hour: '08:00', solarKw: 2.1, batteryKw: 0, dieselKw: 0, demandKw: 2, status: 'forecast' },
-  { hour: '12:00', solarKw: 4.4, batteryKw: 1.6, dieselKw: 0, demandKw: 2.6, status: 'forecast' },
-];
-
-export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartProps) {
+export function PlanTimelineChart({ points }: PlanTimelineChartProps) {
   const maxKw = Math.max(...points.flatMap((point) => [point.solarKw, point.batteryKw, point.dieselKw, point.demandKw]), 1);
   const width = 720;
   const height = 260;
@@ -68,7 +59,9 @@ export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartP
         <span><i className="legend-battery" /> Battery</span>
         <span><i className="legend-diesel" /> Diesel</span>
         <span><i className="legend-demand" /> Demand</span>
-        <Badge tone="forecast">FORECAST</Badge>
+        <Badge tone={points.some((point) => point.status === 'live') ? 'live' : 'forecast'}>
+          {points.some((point) => point.status === 'live') ? 'LIVE + FORECAST' : 'FORECAST'}
+        </Badge>
       </div>
     </div>
   );

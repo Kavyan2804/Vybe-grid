@@ -178,7 +178,7 @@
         <!-- Site Picker -->
         <button type="button" class="group flex items-center gap-2 px-3 py-1.5 h-9 rounded-lg border border-slate-200 bg-slate-50/80 hover:bg-slate-100/90 transition-all text-left shadow-2xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-[#0B6E4F]/20">
           <span class="material-symbols-outlined text-[#0B6E4F] text-[18px]">grid_view</span>
-          <span class="font-sans text-[12.5px] font-semibold text-slate-900 tracking-tight whitespace-nowrap">Site #104 - Bihar Rural</span>
+          <span class="font-sans text-[12.5px] font-semibold text-slate-900 tracking-tight whitespace-nowrap">Dharavi Microgrid</span>
           <span class="material-symbols-outlined text-slate-400 group-hover:text-slate-600 text-[17px] transition-transform group-hover:translate-y-0.5">expand_more</span>
         </button>
 
@@ -471,36 +471,17 @@
                 <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
                   <span class="font-sans text-[12px] text-slate-500 font-medium">Stored Energy:</span>
                   <span class="font-mono text-[13px] font-bold text-slate-900 whitespace-nowrap">
-                    24.8 / 40.0 <span class="font-normal text-slate-500 text-[11px]">kWh</span>
+                    <span id="storedEnergyValue">-- / --</span> <span class="font-normal text-slate-500 text-[11px]">kWh</span>
                   </span>
                 </div>
 
-                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                  <span class="font-sans text-[12px] text-slate-500 font-medium">State of Health (SoH):</span>
-                  <span class="font-mono text-[12px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 whitespace-nowrap">
-                    98.2%
-                  </span>
-                </div>
-
-                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                  <span class="font-sans text-[12px] text-slate-500 font-medium">Mean Cell Temp:</span>
-                  <span class="font-mono text-[13px] font-semibold text-slate-800 whitespace-nowrap">28.4°C</span>
-                </div>
-
-                <div class="flex items-center justify-between">
-                  <span class="font-sans text-[12px] text-slate-500 font-medium">Inverter Rack:</span>
-                  <span class="font-sans text-[11px] text-emerald-800 font-bold flex items-center gap-1.5 whitespace-nowrap">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                    Optimal (MPPT 2)
-                  </span>
-                </div>
               </div>
             </div>
 
             <!-- Operating Reserve Band Callout -->
             <div class="mt-4 p-3.5 bg-slate-50/90 rounded-xl border border-slate-200/70 flex flex-col gap-2.5">
               <div class="flex items-center justify-between text-[11px]">
-                <span class="text-slate-700 font-semibold">Nominal Operating Range (20% – 95%)</span>
+                <span id="batteryOperatingRange" class="text-slate-700 font-semibold">Nominal Operating Range</span>
                 <span class="font-mono text-[11px] text-emerald-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs whitespace-nowrap">
                   Margin: +42%
                 </span>
@@ -510,13 +491,13 @@
               <div class="relative w-full py-1">
                 <div class="w-full h-3 rounded-full bg-slate-200 relative overflow-hidden shadow-inner flex">
                   <!-- 0-20% Low Cutoff Reserve -->
-                  <div class="h-full bg-rose-300/80 border-r border-rose-400" style="width: 20%;" title="Low Cutoff Reserve (20%)"></div>
+                  <div id="batteryFloorBand" class="h-full bg-rose-300/80 border-r border-rose-400" style="width: 10%;" title="Low Cutoff Reserve"></div>
                   <!-- 20-62% Active Current Usable Energy -->
-                  <div class="h-full bg-gradient-to-r from-blue-600 to-emerald-600" style="width: 42%;" title="Current Usable Energy (42% available above floor)"></div>
+                  <div id="batteryActiveBand" class="h-full bg-gradient-to-r from-blue-600 to-emerald-600" style="width: 52%;" title="Current Usable Energy"></div>
                   <!-- 62-95% Available headroom -->
-                  <div class="h-full bg-slate-100" style="width: 33%;" title="Charging Headroom"></div>
+                  <div id="batteryHeadroomBand" class="h-full bg-slate-100" style="width: 38%;" title="Charging Headroom"></div>
                   <!-- 95-100% Float Top -->
-                  <div class="h-full bg-slate-300/70 border-l border-slate-400" style="width: 5%;" title="Float Absorption Top (95%)"></div>
+                  <div id="batteryTopBand" class="h-full bg-slate-300/70 border-l border-slate-400" style="width: 10%;" title="Float Absorption Top"></div>
                 </div>
 
                 <!-- Current SoC indicator tick pointer -->
@@ -528,9 +509,9 @@
               </div>
 
               <div class="flex justify-between items-center font-mono text-[9.5px] text-slate-500 pt-0.5">
-                <span class="text-rose-700 font-semibold whitespace-nowrap">20% FLOOR (8 kWh)</span>
-                <span class="font-bold text-slate-800 whitespace-nowrap px-1.5 py-0.2 rounded bg-white border border-slate-200">62% CURRENT</span>
-                <span class="text-slate-600 font-semibold whitespace-nowrap">95% TOP (38 kWh)</span>
+                <span id="batteryFloorLabel" class="text-rose-700 font-semibold whitespace-nowrap">--% FLOOR</span>
+                <span id="batteryCurrentLabel" class="font-bold text-slate-800 whitespace-nowrap px-1.5 py-0.2 rounded bg-white border border-slate-200">--% CURRENT</span>
+                <span id="batteryTopLabel" class="text-slate-600 font-semibold whitespace-nowrap">--% TOP</span>
               </div>
             </div>
           </div>
@@ -539,9 +520,9 @@
           <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between font-sans text-[11px] text-slate-500 flex-wrap gap-2">
             <div class="flex items-center gap-2">
               <span class="badge-provenance badge-simulated text-[9px] px-1.5 py-0.5 h-auto">SIMULATED</span>
-              <span class="whitespace-nowrap">Chemistry: LiFePO4 (LFP)</span>
+              <span class="whitespace-nowrap">Round-trip Efficiency: 92%</span>
             </div>
-            <span class="font-mono text-[11px] font-semibold text-slate-700 whitespace-nowrap">Cycle Count: 312</span>
+            <span class="font-mono text-[11px] font-semibold text-slate-700 whitespace-nowrap">Capacity: 100 kWh</span>
           </div>
         </div>
 
@@ -574,8 +555,8 @@
                   <span class="font-mono text-[11px] font-semibold text-[#0B6E4F] whitespace-nowrap">saved</span>
                 </div>
                 <div class="font-sans text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
-                  <span>Base: <strong class="font-mono text-slate-700">₹2,150</strong></span>
-                  <span>Act: <strong class="font-mono text-emerald-800">₹910</strong></span>
+                  <span>Base: <strong id="baseCostValue" class="font-mono text-slate-700">--</strong></span>
+                  <span>Act: <strong id="actualCostValue" class="font-mono text-emerald-800">--</strong></span>
                 </div>
               </div>
 
@@ -590,8 +571,8 @@
                   <span class="font-mono text-[11px] font-semibold text-blue-700 whitespace-nowrap">L saved</span>
                 </div>
                 <div class="font-sans text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
-                  <span>Base: <strong class="font-mono text-slate-700">9.8 L</strong></span>
-                  <span>Act: <strong class="font-mono text-blue-800">3.6 L</strong></span>
+                  <span>Base: <strong id="baseFuelValue" class="font-mono text-slate-700">--</strong></span>
+                  <span>Act: <strong id="actualFuelValue" class="font-mono text-blue-800">--</strong></span>
                 </div>
               </div>
 
@@ -606,8 +587,8 @@
                   <span class="font-mono text-[11px] font-semibold text-[#0B6E4F] whitespace-nowrap">h avoided</span>
                 </div>
                 <div class="font-sans text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
-                  <span>Base: <strong class="font-mono text-slate-700">5.2 h</strong></span>
-                  <span>Act: <strong class="font-mono text-emerald-800">1.7 h</strong></span>
+                  <span>Base: <strong id="baseRuntimeValue" class="font-mono text-slate-700">--</strong></span>
+                  <span>Act: <strong id="actualRuntimeValue" class="font-mono text-emerald-800">--</strong></span>
                 </div>
               </div>
 
@@ -622,8 +603,8 @@
                   <span class="font-mono text-[11px] font-semibold text-[#0B6E4F] whitespace-nowrap">kg avoided</span>
                 </div>
                 <div class="font-sans text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
-                  <span>Base: <strong class="font-mono text-slate-700">25.8 kg</strong></span>
-                  <span>Act: <strong class="font-mono text-emerald-800">9.4 kg</strong></span>
+                  <span>Base: <strong id="baseCo2Value" class="font-mono text-slate-700">--</strong></span>
+                  <span>Act: <strong id="actualCo2Value" class="font-mono text-emerald-800">--</strong></span>
                 </div>
               </div>
 
@@ -811,7 +792,7 @@
 
             <!-- Executed Reality Tag directly over Hour 0 -->
             <div class="absolute left-[34px] top-[4px] bg-[#0B6E4F] text-white font-mono text-[9px] px-2 py-0.5 rounded shadow-xs font-bold tracking-wider pointer-events-none">
-              NOW 14:32
+              <span id="graphNowLabel">NOW --:--</span>
             </div>
           </div>
         </div>
@@ -825,7 +806,7 @@
           </div>
           <div class="flex items-center gap-1.5 flex-wrap">
             <span class="badge-provenance badge-forecast text-[9px] px-1.5 py-0.5 h-auto">FORECAST</span>
-            <span>Next Auto-Replan in <span class="font-mono text-[11.5px] text-slate-800 font-bold">27m 52s</span></span>
+            <span>Next Auto-Replan in <span id="autoReplanCountdown" class="font-mono text-[11.5px] text-slate-800 font-bold">--m --s</span></span>
           </div>
         </div>
       </div>
@@ -1053,16 +1034,45 @@
 
       // Real-time second clock tick
       const clockEl = document.getElementById('systemClock');
+      const INDIA_TIME_ZONE = 'Asia/Kolkata';
+      const indiaTime = new Intl.DateTimeFormat('en-GB', {
+        timeZone: INDIA_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+      const indiaHour = new Intl.DateTimeFormat('en-GB', {
+        timeZone: INDIA_TIME_ZONE,
+        hour: '2-digit',
+        hour12: false,
+      });
+      const indiaHourMinute = new Intl.DateTimeFormat('en-GB', {
+        timeZone: INDIA_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const graphNowLabel = document.getElementById('graphNowLabel');
+      const autoReplanCountdown = document.getElementById('autoReplanCountdown');
       function updateClock() {
         const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        clockEl.textContent = `${hours}:${minutes}:${seconds} IST`;
+        const time = indiaTime.format(now);
+        clockEl.textContent = `${time} IST`;
+        if (graphNowLabel) graphNowLabel.textContent = `NOW ${indiaHourMinute.format(now)}`;
+        const indiaNow = new Date(now.toLocaleString('en-US', { timeZone: INDIA_TIME_ZONE }));
+        const nextHour = new Date(indiaNow);
+        nextHour.setHours(indiaNow.getHours() + 1, 0, 0, 0);
+        const remainingSeconds = Math.max(0, Math.ceil((nextHour.getTime() - indiaNow.getTime()) / 1000));
+        if (autoReplanCountdown) {
+          autoReplanCountdown.textContent = `${Math.floor(remainingSeconds / 60)}m ${String(remainingSeconds % 60).padStart(2, '0')}s`;
+        }
       }
       setInterval(updateClock, 1000);
 
-      const API_BASE = window.GRIDPILOT_API_BASE || 'http://127.0.0.1:8001/api';
+      // Use the Next.js same-origin proxy so host and Docker deployments resolve
+      // the backend through their configured BACKEND_URL.
+      const API_BASE = window.GRIDPILOT_API_BASE || '/api';
       const SITE_ID = window.GRIDPILOT_SITE_ID || 'Dharavi Microgrid';
       const money = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
       const oneDecimal = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -1115,10 +1125,14 @@
         const solar = current.solar_kw.value || 0;
         const load = current.load_kw.value || 0;
         const diesel = current.diesel_on ? Math.max(load - solar, 0) : 0;
-        const battery = current.diesel_on ? 0 : solar - load;
+        const batteryKw = current.diesel_on ? 0 : solar - load;
         const flow = Math.max(solar + diesel, load);
         const socPct = current.soc_pct.value || 0;
-        const storedKwh = (socPct / 100) * 40;
+        const batteryConfig = overview.battery || { capacity_kwh: 100, soc_min_pct: 10, soc_max_pct: 90 };
+        const capacityKwh = Number(batteryConfig.capacity_kwh);
+        const minPct = Number(batteryConfig.soc_min_pct);
+        const maxPct = Number(batteryConfig.soc_max_pct);
+        const storedKwh = (socPct / 100) * capacityKwh;
         const loadPct = flow > 0 ? Math.max(0, Math.min(100, (load / flow) * 100)) : 0;
         const battPct = Math.max(0, 100 - loadPct);
 
@@ -1128,7 +1142,7 @@
           if (hero) hero.textContent = oneDecimal.format(flow);
           const values = byClass(mixCard, 'text-[16px]').filter((node) => node.closest('.text-right'));
           if (values[0]) values[0].innerHTML = `${oneDecimal.format(solar)} <span class="text-[12px] font-normal text-slate-500">kW</span>`;
-          if (values[1]) values[1].innerHTML = `${formatKw(battery, true)} <span class="text-[12px] font-normal text-slate-500"></span>`;
+          if (values[1]) values[1].innerHTML = `${formatKw(batteryKw, true)} <span class="text-[12px] font-normal text-slate-500"></span>`;
           if (values[2]) values[2].innerHTML = `${oneDecimal.format(diesel)} <span class="text-[12px] font-normal text-slate-400">kW</span>`;
           if (values[3]) values[3].innerHTML = `${oneDecimal.format(load)} <span class="text-[12px] font-normal text-slate-500">kW</span>`;
           const bars = mixCard.querySelectorAll('.w-full.h-2 > div');
@@ -1138,7 +1152,7 @@
           if (legend) {
             const spans = legend.querySelectorAll('span.flex');
             if (spans[0]) spans[0].lastChild.textContent = `Load: ${oneDecimal.format(load)} kW (${loadPct.toFixed(0)}%)`;
-            if (spans[1]) spans[1].lastChild.textContent = `BESS: ${oneDecimal.format(Math.abs(battery))} kW (${battPct.toFixed(0)}%)`;
+            if (spans[1]) spans[1].lastChild.textContent = `BESS: ${oneDecimal.format(Math.abs(batteryKw))} kW (${battPct.toFixed(0)}%)`;
           }
         }
 
@@ -1149,13 +1163,27 @@
           if (arc) arc.setAttribute('stroke-dashoffset', String(257.6 - (257.6 * percent) / 100));
           const pctText = byClass(batteryCard, 'text-[36px]')[0];
           if (pctText) pctText.textContent = String(percent);
-          setMetricAfterLabel(batteryCard, 'Stored Energy:', `${oneDecimal.format(storedKwh)} / 40.0 kWh`);
+          const storedEnergy = batteryCard.querySelector('#storedEnergyValue');
+          if (storedEnergy) storedEnergy.textContent = `${oneDecimal.format(storedKwh)} / ${oneDecimal.format(capacityKwh)}`;
+          const range = batteryCard.querySelector('#batteryOperatingRange');
+          if (range) range.textContent = `Nominal Operating Range (${minPct}% – ${maxPct}%)`;
+          const floorLabel = batteryCard.querySelector('#batteryFloorLabel');
+          if (floorLabel) floorLabel.textContent = `${minPct}% FLOOR (${oneDecimal.format(capacityKwh * minPct / 100)} kWh)`;
+          const topLabel = batteryCard.querySelector('#batteryTopLabel');
+          if (topLabel) topLabel.textContent = `${maxPct}% TOP (${oneDecimal.format(capacityKwh * maxPct / 100)} kWh)`;
+          const currentLabel = batteryCard.querySelector('#batteryCurrentLabel');
+          if (currentLabel) currentLabel.textContent = `${percent}% CURRENT`;
           const active = batteryCard.querySelector('.bg-gradient-to-r');
-          if (active) active.style.width = `${Math.max(0, Math.min(75, percent - 20))}%`;
+          const usablePct = Math.max(0, percent - minPct);
+          if (active) active.style.width = `${usablePct}%`;
+          const floorBand = batteryCard.querySelector('#batteryFloorBand');
+          if (floorBand) floorBand.style.width = `${minPct}%`;
+          const headroomBand = batteryCard.querySelector('#batteryHeadroomBand');
+          if (headroomBand) headroomBand.style.width = `${Math.max(0, maxPct - percent)}%`;
+          const topBand = batteryCard.querySelector('#batteryTopBand');
+          if (topBand) topBand.style.width = `${Math.max(0, 100 - maxPct)}%`;
           const pointer = batteryCard.querySelector('.absolute.top-0.transform');
           if (pointer) pointer.style.left = `${Math.max(0, Math.min(100, percent))}%`;
-          const currentLabel = Array.from(batteryCard.querySelectorAll('span')).find((node) => node.textContent.includes('% CURRENT'));
-          if (currentLabel) currentLabel.textContent = `${percent}% CURRENT`;
         }
 
         const savingsCard = findCard("Today's Savings vs Baseline");
@@ -1311,7 +1339,7 @@
         const tickAt = plan.tick_at ? new Date(plan.tick_at) : new Date();
         dispatchData.forEach((slot, index) => {
           const at = new Date(tickAt.getTime() + index * 60 * 60 * 1000);
-          slot.label = `${String(at.getHours()).padStart(2, '0')}:00`;
+          slot.label = `${indiaHour.format(at)}:00`;
           slot.hour = `${slot.label} (H${index})`;
         });
         renderDispatchChart(plan, dispatchData);
@@ -1328,6 +1356,20 @@
         const card = findCard("Today's Savings vs Baseline");
         if (!card) return;
         const metricValues = byClass(card, 'text-[22px]');
+        const baseline = savings.baseline || {};
+        const actual = savings.optimized || {};
+        const details = [
+          { base: baseline.cost, actual: actual.cost, baseId: 'baseCostValue', actualId: 'actualCostValue', format: (value) => `₹${money.format(value)}` },
+          { base: baseline.fuel_litres, actual: actual.fuel_litres, baseId: 'baseFuelValue', actualId: 'actualFuelValue', format: (value) => `${oneDecimal.format(value)} L` },
+          { base: baseline.diesel_hours, actual: actual.diesel_hours, baseId: 'baseRuntimeValue', actualId: 'actualRuntimeValue', format: (value) => `${oneDecimal.format(value)} h` },
+          { base: baseline.co2_kg, actual: actual.co2_kg, baseId: 'baseCo2Value', actualId: 'actualCo2Value', format: (value) => `${oneDecimal.format(value)} kg` },
+        ];
+        details.forEach((detail) => {
+          const baseEl = card.querySelector(`#${detail.baseId}`);
+          const actualEl = card.querySelector(`#${detail.actualId}`);
+          if (baseEl) baseEl.textContent = detail.format(Number(detail.base || 0));
+          if (actualEl) actualEl.textContent = detail.format(Number(detail.actual || 0));
+        });
         const saved = savings.saved || {};
         const metrics = [
           { value: saved.cost || 0, unit: 'saved', lossUnit: 'over' },
@@ -1350,8 +1392,20 @@
         syncIcon.classList.add('rotate-180');
         try {
           const now = new Date();
-          const dayStart = new Date(now);
-          dayStart.setHours(0, 0, 0, 0);
+          const indiaParts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: INDIA_TIME_ZONE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).formatToParts(now).reduce((parts, part) => {
+            if (part.type !== 'literal') parts[part.type] = part.value;
+            return parts;
+          }, {});
+          const dayStart = new Date(Date.UTC(
+            Number(indiaParts.year),
+            Number(indiaParts.month) - 1,
+            Number(indiaParts.day),
+          ) - (5.5 * 60 * 60 * 1000));
           const query = `site_id=${encodeURIComponent(SITE_ID)}`;
           const [overview, plan] = await Promise.all([
             api(`/overview?${query}`),
@@ -1371,29 +1425,43 @@
         }
       }
 
+      let pendingTicks = 0;
+      let tickProcessing = false;
+
       async function runTick() {
-        syncBtn.disabled = true;
-        syncBtn.classList.add('opacity-80', 'cursor-wait');
-        syncIcon.classList.add('animate-spin');
-        try {
-          const query = `site_id=${encodeURIComponent(SITE_ID)}`;
-          await api(`/tick?${query}`, { method: 'POST' });
-          await refreshDashboard();
-        } catch (error) {
-          console.warn('GridPilot tick failed:', error);
-          const status = Array.from(document.querySelectorAll('span')).find((node) => node.textContent.includes('SSE:') || node.textContent.includes('API:'));
-          if (status) status.textContent = 'TICK: FAILED';
-        } finally {
-          syncBtn.disabled = false;
-          syncBtn.classList.remove('opacity-80', 'cursor-wait');
-          syncIcon.classList.remove('animate-spin');
+        pendingTicks += 1;
+        if (tickProcessing) return;
+        tickProcessing = true;
+        while (pendingTicks > 0) {
+          pendingTicks -= 1;
+          syncBtn.setAttribute('aria-busy', 'true');
+          syncBtn.classList.add('opacity-80', 'cursor-wait');
+          syncIcon.classList.add('animate-spin');
+          try {
+            const query = `site_id=${encodeURIComponent(SITE_ID)}`;
+            await api(`/tick?${query}`, { method: 'POST' });
+            await refreshDashboard();
+          } catch (error) {
+            console.warn('GridPilot tick failed:', error);
+            const status = Array.from(document.querySelectorAll('span')).find((node) => node.textContent.includes('SSE:') || node.textContent.includes('API:'));
+            if (status) status.textContent = 'TICK: FAILED';
+          } finally {
+            syncBtn.removeAttribute('aria-busy');
+            syncBtn.classList.remove('opacity-80', 'cursor-wait');
+            syncIcon.classList.remove('animate-spin');
+          }
         }
+        tickProcessing = false;
       }
 
       syncBtn.addEventListener('click', runTick);
+      window.addEventListener('message', (event) => {
+        if (event.origin === window.location.origin && event.data?.type === 'gridpilot:refresh') {
+          refreshDashboard();
+        }
+      });
       refreshDashboard();
     })();
   </script>
 </body>
 </html>
-

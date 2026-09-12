@@ -2,22 +2,31 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from datetime import UTC, datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.db.models.alerts import AlertState as DbAlertState
+from src.db.repositories.alerts import AlertRepository
+from src.db.session import get_db_session
 from src.openapi import OPENAPI_ERROR_RESPONSES
 from src.schemas.alerts import (
     Alert,
     AlertActionResponse,
     AlertCreateRequest,
     AlertListResponse,
+    AlertState,
     AlertSeverity,
     AlertStatus,
+    AlertType,
 )
 from src.services.alert_service import (
     AlertNotFoundError,
     AlertTransitionError,
     alert_service,
 )
+from src.schemas.common import ProvenanceBadge
 
 router = APIRouter(tags=["alerts"])
 
@@ -64,7 +73,7 @@ async def list_alerts(
     "/alerts/active",
     response_model=AlertListResponse,
     summary="List active alerts",
-    description="List created and acknowledged alerts that have not been resolved.",
+    description="List created and acknowledged alerts persisted by the live alert pipeline.",
     response_description="Active alerts from the local in-memory service.",
     responses=OPENAPI_ERROR_RESPONSES,
 )
@@ -72,11 +81,60 @@ async def list_active_alerts(
     site_id: str | None = Query(None, min_length=1),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
 ) -> AlertListResponse:
-    """Return active alerts with deterministic pagination."""
+    """Return current alerts persisted by the live rolling-horizon process."""
+    if not site_id:
+        return AlertListResponse(total=0, items=[])
+    rows = await AlertRepository(session).list_for_site(site_id, limit=limit + offset)
+    active = [row for row in rows if row.state != DbAlertState.RESOLVED]
+    items = [_database_alert_to_schema(row) for row in active[offset : offset + limit]]
+    return AlertListResponse(total=len(active), items=items)
 
-    active = alert_service.list_active_alerts(site_id=site_id)
-    return AlertListResponse(total=len(active), items=active[offset : offset + limit])
+
+def _database_alert_to_schema(row) -> Alert:
+    """Adapt the database alert contract to the legacy Alerts page schema."""
+    type_map = {
+        "SOC_LOW": AlertType.LOW_SOC_RESERVE,
+        "DIESEL_REQUIRED_SOON": AlertType.DIESEL_REQUIRED_SOON,
+        "SOLAR_FORECAST_STALE": AlertType.FORECAST_STALE,
+        "SOLVER_FALLBACK_ACTIVE": AlertType.SOLVER_FALLBACK_ACTIVE,
+        "SOLVER_INFEASIBLE": AlertType.SOLVER_FALLBACK_ACTIVE,
+        "DIESEL_RUNTIME_EXCEEDED": AlertType.DIESEL_REQUIRED_SOON,
+    }
+    api_type = type_map.get(row.type.value, AlertType.SOLVER_FALLBACK_ACTIVE)
+    severity = (
+        AlertSeverity.CRITICAL
+        if row.type.value in {"SOLVER_INFEASIBLE", "CRITICAL_LOAD_AT_RISK"}
+        else AlertSeverity.WARNING
+    )
+    state = AlertState(row.state.value)
+    provenance = [ProvenanceBadge.LIVE]
+    if row.provenance and isinstance(row.provenance, dict):
+        badges = row.provenance.get("badges")
+        if isinstance(badges, list):
+            valid_badges = {badge.value for badge in ProvenanceBadge}
+            provenance = [
+                ProvenanceBadge(badge)
+                for badge in badges
+                if isinstance(badge, str) and badge in valid_badges
+            ] or provenance
+    return Alert(
+        id=row.id,
+        site_id=row.site_id,
+        type=api_type,
+        subject=row.subject,
+        state=state,
+        severity=severity,
+        status=AlertStatus.ACKNOWLEDGED if state is AlertState.ACKNOWLEDGED else AlertStatus.ACTIVE,
+        title=row.title,
+        message=f"{row.title} detected for {row.site_id}.",
+        created_at=row.received_at or datetime.now(UTC),
+        raised_at=row.raised_at,
+        received_at=row.received_at,
+        provenance=provenance,
+        resolved_at=row.resolved_at,
+    )
 
 
 @router.get(

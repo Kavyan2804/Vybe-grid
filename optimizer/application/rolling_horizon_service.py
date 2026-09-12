@@ -43,6 +43,7 @@ class RollingHorizonService:
         alert_port: Optional[AlertPort] = None,
         default_initial_soc_pct: float = 50.0,
         solve_timeout_seconds: float = 20.0,
+        baseline_initial_state: Optional[MicrogridState] = None,
     ) -> None:
         self.site = site
         self.forecast_port = forecast_port
@@ -56,7 +57,7 @@ class RollingHorizonService:
         self.solve_timeout_seconds = solve_timeout_seconds
 
         # Shadow baseline state tracked alongside the rolling horizon
-        self._baseline_state = MicrogridState(
+        self._baseline_state = baseline_initial_state or MicrogridState(
             soc_pct=default_initial_soc_pct,
             diesel_on=False,
             diesel_run_hours=0,

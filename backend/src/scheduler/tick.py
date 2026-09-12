@@ -3,9 +3,11 @@
 Schedules periodic rolling-horizon optimization ticks for configured sites.
 """
 
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Any, Callable
+from zoneinfo import ZoneInfo
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from src.config.settings import get_settings
 
@@ -29,14 +31,17 @@ class RollingScheduler:
         self._is_running = False
 
     def schedule_site(self, site_id: str) -> None:
-        """Register a rolling-horizon job for a site."""
+        """Register a rolling-horizon job at the top of every India hour."""
         job_id = f"tick_{site_id}"
         if self.scheduler.get_job(job_id):
             self.scheduler.remove_job(job_id)
 
         self.scheduler.add_job(
             self._execute_tick,
-            trigger=IntervalTrigger(minutes=self.interval_minutes),
+            trigger=CronTrigger(
+                minute=0,
+                timezone=ZoneInfo("Asia/Kolkata"),
+            ),
             id=job_id,
             args=[site_id],
             replace_existing=True,
@@ -63,4 +68,3 @@ class RollingScheduler:
         if self._is_running:
             self.scheduler.shutdown(wait=False)
             self._is_running = False
-

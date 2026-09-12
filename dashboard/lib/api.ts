@@ -1,4 +1,4 @@
-export const API_BASE = process.env.NEXT_PUBLIC_GRIDPILOT_API_BASE ?? 'http://127.0.0.1:8001/api';
+export const API_BASE = process.env.NEXT_PUBLIC_GRIDPILOT_API_BASE ?? '/api';
 export const DEFAULT_SITE_ID = process.env.NEXT_PUBLIC_GRIDPILOT_SITE_ID ?? 'Dharavi Microgrid';
 
 export type ApiValue = {
@@ -9,6 +9,11 @@ export type ApiValue = {
 
 export type OverviewResponse = {
   site?: { id?: string; name?: string };
+  battery?: {
+    capacity_kwh?: number;
+    soc_min_pct?: number;
+    soc_max_pct?: number;
+  };
   current?: {
     solar_kw: ApiValue;
     load_kw: ApiValue;
@@ -31,6 +36,7 @@ export type PlanSeriesItem = {
   diesel_kw?: number;
   soc_kwh?: number;
   solar_curtailed_kw?: number;
+  load_kw?: number;
   unmet_flex_kw?: number;
   executed?: boolean;
   badges?: string[];
@@ -74,7 +80,11 @@ export type SavingsResponse = {
 };
 
 export async function gridpilotFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const baseUrl =
+    typeof window === 'undefined'
+      ? `${process.env.BACKEND_URL || 'http://localhost:8000'}/api`
+      : API_BASE;
+  const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     cache: 'no-store',
   });

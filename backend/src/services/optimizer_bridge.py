@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 
 # --- make the sibling `optimizer/` package importable regardless of how uvicorn was launched ---
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -124,6 +124,7 @@ def decision_to_series_item(
         "soc_kwh": soc_kwh,
         "solar_used_kw": decision.solar_kw,
         "solar_curtailed_kw": solar_curtailed_kw,
+        "load_kw": decision.load_kw,
         # Not separately exposed by DispatchDecision (folded into load_kw upstream) —
         # 0.0 is the honest default rather than a guess; see PHASE_2 follow-ups.
         "unmet_flex_kw": 0.0,
@@ -376,6 +377,48 @@ def _persist_baseline(
     session.flush()
 
 
+def _latest_baseline_state(
+    session: Session,
+    site_id: str,
+    battery_capacity_kwh: float,
+    default_soc_pct: float = 50.0,
+) -> MicrogridState:
+    """Resume the shadow controller from its persisted baseline ledger."""
+    rows = list(
+        session.execute(
+            select(BaselineTelemetry)
+            .where(BaselineTelemetry.site_id == site_id)
+            .order_by(BaselineTelemetry.at.asc())
+        ).scalars()
+    )
+    if not rows:
+        return MicrogridState(
+            soc_pct=default_soc_pct,
+            diesel_on=False,
+            diesel_run_hours=0,
+            diesel_off_hours=10,
+        )
+
+    latest = rows[-1]
+    diesel_on = bool(latest.diesel_on)
+    consecutive = 0
+    for row in reversed(rows):
+        if bool(row.diesel_on) != diesel_on:
+            break
+        consecutive += 1
+
+    return MicrogridState(
+        soc_pct=(
+            default_soc_pct
+            if latest.soc_kwh is None
+            else (latest.soc_kwh / battery_capacity_kwh) * 100.0
+        ),
+        diesel_on=diesel_on,
+        diesel_run_hours=consecutive if diesel_on else 0,
+        diesel_off_hours=consecutive if not diesel_on else 0,
+    )
+
+
 def run_tick_sync(site_id: str) -> dict[str, Any]:
     """Run one full rolling-horizon tick for `site_id` against the real database.
 
@@ -428,6 +471,9 @@ def run_tick_sync(site_id: str) -> dict[str, Any]:
             session=session, telemetry_repository=telemetry_repo, plan_repository=plan_repo
         )
         alert_sink = PostgresAlertSink(session=session, site_id=site_id)
+        baseline_state = _latest_baseline_state(
+            session, site_id, site.battery.capacity_kwh
+        )
 
         service = RollingHorizonService(
             site=site,
@@ -439,6 +485,7 @@ def run_tick_sync(site_id: str) -> dict[str, Any]:
             execution_repository=execution_repo,
             alert_port=alert_sink,
             solve_timeout_seconds=settings.solve_timeout_seconds,
+            baseline_initial_state=baseline_state,
         )
         result = service.tick(provided_forecast=forecast)
 

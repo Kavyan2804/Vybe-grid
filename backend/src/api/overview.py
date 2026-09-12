@@ -8,6 +8,7 @@ stops being a placeholder.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -19,6 +20,7 @@ from src.db.repositories.telemetry import TelemetryRepository
 from src.db.session import get_db_session
 from src.openapi import OPENAPI_ERROR_RESPONSES
 from src.schemas.common import ProvenanceBadge
+from src.services.savings_service import weighted_diesel_totals
 
 router = APIRouter(tags=["overview"])
 
@@ -56,6 +58,14 @@ class OverviewSite(BaseModel):
     name: str
 
 
+class OverviewBattery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    capacity_kwh: float
+    soc_min_pct: float
+    soc_max_pct: float
+
+
 class OverviewResponse(BaseModel):
     """Everything the landing page needs in one call — API_CONTRACT.md §1."""
 
@@ -63,6 +73,7 @@ class OverviewResponse(BaseModel):
 
     server_time: str
     site: OverviewSite
+    battery: OverviewBattery
     current: OverviewCurrent | None
     today: OverviewToday | None
     unread_alerts: int
@@ -96,7 +107,8 @@ async def get_overview(
     )
 
     now = datetime.now(timezone.utc)
-    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    site_now = now.astimezone(ZoneInfo(site_row.timezone if site_row is not None else "Asia/Kolkata"))
+    day_start = site_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
 
     # list_for_site orders ascending, so the newest row is the last element, not the first —
     # a wide-enough window plus a generous limit stands in for a dedicated "latest row" query.
@@ -122,18 +134,22 @@ async def get_overview(
 
     today = None
     if today_optimized:
-        diesel_hours = float(sum(1 for point in today_optimized if point.diesel_kw > 0))
+        optimized_diesel_hours, optimized_kwh = weighted_diesel_totals(
+            today_optimized, end_at=now
+        )
         today_block = {
-            "diesel_hours": Provenanced(value=diesel_hours, badges=[ProvenanceBadge.SIMULATED]),
+            "diesel_hours": Provenanced(
+                value=round(optimized_diesel_hours, 2),
+                badges=[ProvenanceBadge.SIMULATED],
+            ),
             "fuel_liters_saved_vs_baseline": None,
             "cost_saved_vs_baseline": None,
         }
         if today_baseline and site_row is not None and site_row.config:
             fuel_l_per_kwh = float(site_row.config.get("diesel_generator", {}).get("fuel_curve", {}).get("litres_per_kwh_max_load", 0.0))
             fuel_price = float(site_row.config.get("fuel_cost_per_litre", 0.0))
-            optimized_kwh = sum(p.diesel_kw for p in today_optimized)
-            baseline_kwh = sum(p.diesel_kw for p in today_baseline)
-            saved_litres = max(0.0, (baseline_kwh - optimized_kwh) * fuel_l_per_kwh)
+            _, baseline_kwh = weighted_diesel_totals(today_baseline, end_at=now)
+            saved_litres = (baseline_kwh - optimized_kwh) * fuel_l_per_kwh
             today_block["fuel_liters_saved_vs_baseline"] = Provenanced(
                 value=round(saved_litres, 2),
                 badges=[ProvenanceBadge.SIMULATED, ProvenanceBadge.BASELINE],
@@ -145,8 +161,13 @@ async def get_overview(
         today = OverviewToday(**today_block)
 
     return OverviewResponse(
-        server_time=now.isoformat(),
+        server_time=site_now.isoformat(),
         site=OverviewSite(id=site_id, name=site_name),
+        battery=OverviewBattery(
+            capacity_kwh=battery_capacity_kwh or 0.0,
+            soc_min_pct=float(site_row.config.get("battery", {}).get("soc_min_pct", 0.0)) if site_row and site_row.config else 0.0,
+            soc_max_pct=float(site_row.config.get("battery", {}).get("soc_max_pct", 100.0)) if site_row and site_row.config else 100.0,
+        ),
         current=current,
         today=today,
         unread_alerts=0,  # TODO: wire to the real AlertRepository once alert-type reconciliation lands

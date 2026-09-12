@@ -23,31 +23,9 @@ async function getAlerts() {
   }
 }
 
-const previewAlerts: AlertItem[] = [
-  {
-    id: 'diesel-start',
-    severity: 'warning',
-    title: 'Diesel start planned within 2 hours',
-    message: 'Battery SoC projected to hit 22% at 16:30 under heavy community irrigation pump schedule. Genset dispatch sequence pre-armed for warm start.',
-    status: 'forecast',
-    raised_at: '14:30:00',
-    received_at: '14:30:02',
-  },
-  {
-    id: 'cloud-cover',
-    severity: 'info',
-    title: 'Cloud cover trajectory update received from IMD API',
-    message: 'Solar irradiance forecast adjusted down -14% for 15:00-17:00 IST window due to cumulus cloud buildup in Samastipur sector.',
-    status: 'forecast',
-    raised_at: '14:15:00',
-    received_at: '14:15:01',
-  },
-];
-
 export default async function AlertsPage() {
   const response = await getAlerts();
-  const alerts = response?.items.length ? response.items : previewAlerts;
-  const isPreview = !response;
+  const alerts = response?.items ?? [];
 
   return (
     <main className="dashboard-shell alerts-shell">
@@ -55,20 +33,21 @@ export default async function AlertsPage() {
         <div className="alerts-heading">
           <div className="alerts-title-group">
             <h1>Operational Alerts &amp; Notices</h1>
-            <span className="alert-status forecast">FORECAST</span>
-            <span className="alert-active-count">{response?.total ?? alerts.length} Active</span>
+            <span className="alert-status live">LIVE</span>
+            <span className="alert-active-count">{response?.total ?? 0} Active</span>
           </div>
-          <a className="cluster-logs-link" href="#cluster-logs">View All Cluster Logs <span aria-hidden="true">-&gt;</span></a>
         </div>
 
         <div className="alert-list">
-          {alerts.map((alert) => (
+          {alerts.length ? alerts.map((alert) => (
             <article className={`alert-card alert-card-${alert.severity}`} key={alert.id}>
               <div className="alert-icon" aria-hidden="true">{alert.severity === 'warning' ? '!' : 'i'}</div>
               <div className="alert-card-content">
                 <div className="alert-card-title">
                   <h2>{alert.title}</h2>
-                  <span className="alert-status forecast">FORECAST</span>
+                  <span className={`alert-status ${alert.status === 'acknowledged' ? 'forecast' : 'live'}`}>
+                    {alert.status.toUpperCase()}
+                  </span>
                 </div>
                 <p className="alert-timestamps">
                   raised: {alert.raised_at ?? '--:--:--'} <span>•</span> rcvd: {alert.received_at ?? '--:--:--'} {alert.received_at ? '(gap: 2s OK)' : ''}
@@ -86,10 +65,12 @@ export default async function AlertsPage() {
                 )}
               </div>
             </article>
-          ))}
+          )) : (
+            <p className="alerts-data-note">
+              {response ? 'No active alerts for Dharavi Microgrid.' : 'Live alerts are temporarily unavailable.'}
+            </p>
+          )}
         </div>
-
-        {isPreview ? <p className="alerts-data-note">Showing the latest simulated alert notices while the Alerts API is offline.</p> : null}
       </section>
     </main>
   );

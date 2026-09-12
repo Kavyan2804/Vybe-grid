@@ -32,6 +32,7 @@ services:
       - "8000:8000"
     volumes:
       - ./optimizer:/app/optimizer
+      - ./packages:/app/packages
       - ./backend/src:/app/src
 
   dashboard:

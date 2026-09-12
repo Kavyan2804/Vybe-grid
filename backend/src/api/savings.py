@@ -233,7 +233,12 @@ async def get_savings(
         )
 
     try:
-        savings = calculate_savings(inputs.optimized_points, inputs.baseline_points, inputs.conversion)
+        savings = calculate_savings(
+            inputs.optimized_points,
+            inputs.baseline_points,
+            inputs.conversion,
+            end_at=end_at,
+        )
     except SavingsCalculationError as exc:
         raise HTTPException(
             status_code=409,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.schemas.savings import SavingsDeltaMetrics, SavingsMetrics, SavingsResult
 from src.schemas.telemetry import TelemetryPoint
@@ -18,9 +18,9 @@ class SavingsCalculationError(ValueError):
 class FuelConversion:
     """Site-provided conversion inputs applied identically to both ledgers.
 
-    The documented Phase 3 query sums hourly ``diesel_kw`` values as diesel kWh and
-    counts a positive-diesel row as one diesel hour. This service therefore expects
-    one telemetry point per one-hour tick; interval duration is not inferred here.
+    Diesel output is converted to energy using the elapsed duration represented by
+    each telemetry point. This prevents repeated rapid ticks from being counted as
+    separate hours.
     """
 
     fuel_litres_per_kwh: float
@@ -41,6 +41,8 @@ def calculate_savings(
     optimized_points: Sequence[TelemetryPoint],
     baseline_points: Sequence[TelemetryPoint],
     conversion: FuelConversion,
+    *,
+    end_at: datetime | None = None,
 ) -> SavingsResult:
     """Compare matching optimized and baseline telemetry without modifying either input.
 
@@ -61,8 +63,8 @@ def calculate_savings(
             "optimized and baseline telemetry must have matching timestamps"
         )
 
-    optimized = _metrics(optimized_by_time.values(), conversion)
-    baseline = _metrics(baseline_by_time.values(), conversion)
+    optimized = _metrics(optimized_by_time.values(), conversion, end_at=end_at)
+    baseline = _metrics(baseline_by_time.values(), conversion, end_at=end_at)
     return SavingsResult(
         site_id=optimized_site_id,
         optimized=optimized,
@@ -93,10 +95,45 @@ def _index_points(
     return indexed, site_ids.pop()
 
 
-def _metrics(points: Iterable[TelemetryPoint], conversion: FuelConversion) -> SavingsMetrics:
-    telemetry = tuple(points)  # Materialize only for deterministic repeated aggregation.
-    diesel_energy_kwh = sum(point.diesel_kw for point in telemetry)
-    diesel_hours = float(sum(point.diesel_kw > 0 for point in telemetry))
+def weighted_diesel_totals(
+    points: Iterable[TelemetryPoint],
+    *,
+    end_at: datetime | None = None,
+) -> tuple[float, float]:
+    """Return elapsed diesel runtime hours and diesel energy in kWh.
+
+    A point describes the operating state until the next point. The final point
+    runs until ``end_at`` when supplied; otherwise it retains the legacy one-hour
+    duration for direct callers that do not have a query boundary.
+    """
+    telemetry = sorted(points, key=lambda point: point.at)
+    diesel_hours = 0.0
+    diesel_energy_kwh = 0.0
+    for index, point in enumerate(telemetry):
+        interval_end = (
+            telemetry[index + 1].at
+            if index + 1 < len(telemetry)
+            else end_at
+        )
+        duration = (
+            timedelta(hours=1)
+            if interval_end is None
+            else max(timedelta(0), interval_end - point.at)
+        )
+        duration_hours = duration.total_seconds() / 3600.0
+        if point.diesel_kw > 0:
+            diesel_hours += duration_hours
+            diesel_energy_kwh += point.diesel_kw * duration_hours
+    return diesel_hours, diesel_energy_kwh
+
+
+def _metrics(
+    points: Iterable[TelemetryPoint],
+    conversion: FuelConversion,
+    *,
+    end_at: datetime | None = None,
+) -> SavingsMetrics:
+    diesel_hours, diesel_energy_kwh = weighted_diesel_totals(points, end_at=end_at)
     fuel_litres = diesel_energy_kwh * conversion.fuel_litres_per_kwh
     return SavingsMetrics(
         diesel_hours=diesel_hours,

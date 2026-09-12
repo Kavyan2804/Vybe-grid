@@ -4,8 +4,20 @@ import { gridpilotFetch, siteQuery, type SavingsResponse } from '../../lib/api';
 
 async function getSavings() {
   const end = new Date();
-  const start = new Date(end);
-  start.setHours(0, 0, 0, 0);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(end).reduce<Record<string, string>>((result, part) => {
+    if (part.type !== 'literal') result[part.type] = part.value;
+    return result;
+  }, {});
+  const start = new Date(Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+  ) - (5.5 * 60 * 60 * 1000));
 
   try {
     return await gridpilotFetch<SavingsResponse>(
@@ -18,14 +30,18 @@ async function getSavings() {
 
 function signed(value = 0, unit = '') {
   const abs = Math.abs(value);
-  return `${value >= 0 ? '' : '-'}${abs.toLocaleString('en-IN', { maximumFractionDigits: 1 })}${unit}`;
+  return `${value < 0 ? '-' : ''}${abs.toLocaleString('en-IN', { maximumFractionDigits: 1 })}${unit}`;
+}
+
+function signedCurrency(value = 0) {
+  return `${value < 0 ? '-' : ''}Rs ${Math.round(Math.abs(value)).toLocaleString('en-IN')}`;
 }
 
 export default async function SavingsPage() {
   const savings = await getSavings();
   const saved = savings?.saved;
   const metrics = [
-    ['Cost Avoided', `Rs ${Math.round(Math.abs(saved?.cost ?? 0)).toLocaleString('en-IN')}`, 'vs diesel baseline'],
+    ['Cost Avoided', signedCurrency(saved?.cost), saved?.cost != null && saved.cost < 0 ? 'over diesel baseline' : 'vs diesel baseline'],
     ['Fuel Saved', signed(saved?.fuel_litres, ' L'), 'today'],
     ['CO2 Avoided', signed(saved?.co2_kg, ' kg'), 'estimated'],
     ['Diesel Runtime', signed(saved?.diesel_hours, ' h'), 'avoided'],
@@ -46,8 +62,8 @@ export default async function SavingsPage() {
       <Panel title="Savings Drivers" eyebrow="Solar-first dispatch">
         {savings ? (
           <div className="savings-bars">
-            <div><span>Optimized diesel cost</span><i style={{ width: `${Math.min(100, Math.max(8, savings.optimized.cost / Math.max(1, savings.baseline.cost) * 100))}%` }} /></div>
-            <div><span>Optimized fuel burn</span><i style={{ width: `${Math.min(100, Math.max(8, savings.optimized.fuel_litres / Math.max(1, savings.baseline.fuel_litres) * 100))}%` }} /></div>
+            <div><span>Optimized diesel cost</span><i style={{ width: `${Math.min(100, Math.max(8, savings.baseline.cost ? savings.optimized.cost / savings.baseline.cost * 100 : savings.optimized.cost > 0 ? 100 : 8))}%` }} /></div>
+            <div><span>Optimized fuel burn</span><i style={{ width: `${Math.min(100, Math.max(8, savings.baseline.fuel_litres ? savings.optimized.fuel_litres / savings.baseline.fuel_litres * 100 : savings.optimized.fuel_litres > 0 ? 100 : 8))}%` }} /></div>
             <div><span>Plan comparison hours</span><i style={{ width: `${Math.min(100, Math.max(8, savings.comparison.hours.length * 8))}%` }} /></div>
           </div>
         ) : (

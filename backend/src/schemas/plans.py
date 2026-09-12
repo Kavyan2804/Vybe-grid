@@ -66,6 +66,7 @@ class PlanSeriesItem(BaseModel):
     soc_kwh: float = Field(..., ge=0, description="Battery state of charge at end of hour in kWh")
     solar_used_kw: float = Field(..., ge=0, description="Solar power dispatched to load/battery in kW")
     solar_curtailed_kw: float = Field(..., ge=0, description="Excess solar power curtailed in kW")
+    load_kw: float | None = Field(None, ge=0, description="Forecast site load in kW")
     unmet_flex_kw: float = Field(0.0, ge=0, description="Unmet flexible load in kW (critical is always 0)")
     executed: bool = Field(..., description="True only for hour 0 that has actually run")
     badges: list[ProvenanceBadge] = Field(..., description="Provenance badges (SIMULATED, FORECAST, etc.)")

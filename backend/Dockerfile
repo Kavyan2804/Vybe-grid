@@ -9,6 +9,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml ./
 RUN uv pip install --system --no-cache ".[dev]"
 
+# Include migrations so a fresh container can initialize its database before serving.
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+
 # Copy backend source
 COPY src/ ./src/
 
@@ -17,5 +21,4 @@ COPY src/ ./src/
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn src.main:app --host 0.0.0.0 --port 8000"]
