@@ -22,17 +22,14 @@ from src.db.base import Base
 
 
 class AlertType(str, enum.Enum):
-    """The six alert types from PRD.md §11.
+    """The six alert types from PRD.md §11 / packages/contracts/events/alert.schema.json."""
 
-    ⚠ ASSUMPTION: Verify these values against PRD.md §11.
-    """
-
+    CRITICAL_LOAD_AT_RISK = "CRITICAL_LOAD_AT_RISK"
+    LOW_SOC_RESERVE = "LOW_SOC_RESERVE"
     DIESEL_REQUIRED_SOON = "DIESEL_REQUIRED_SOON"
-    SOC_LOW = "SOC_LOW"
-    SOLAR_FORECAST_STALE = "SOLAR_FORECAST_STALE"
     SOLVER_FALLBACK_ACTIVE = "SOLVER_FALLBACK_ACTIVE"
-    SOLVER_INFEASIBLE = "SOLVER_INFEASIBLE"
-    DIESEL_RUNTIME_EXCEEDED = "DIESEL_RUNTIME_EXCEEDED"
+    FORECAST_STALE = "FORECAST_STALE"
+    BASELINE_DIVERGENCE = "BASELINE_DIVERGENCE"
 
 
 class AlertState(str, enum.Enum):

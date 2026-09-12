@@ -7,23 +7,22 @@ export type PlanTimelinePoint = {
   dieselKw: number;
   demandKw: number;
   status?: 'live' | 'forecast';
+  executed?: boolean;
 };
 
 type PlanTimelineChartProps = {
   points?: PlanTimelinePoint[];
 };
 
-const defaultPoints: PlanTimelinePoint[] = [
-  { hour: '14:00', solarKw: 4.1, batteryKw: 1.8, dieselKw: 0, demandKw: 2.3, status: 'live' },
-  { hour: '16:00', solarKw: 1.2, batteryKw: 1.1, dieselKw: 0, demandKw: 2.7, status: 'forecast' },
-  { hour: '18:00', solarKw: 0, batteryKw: 1.8, dieselKw: 1.4, demandKw: 3.2, status: 'forecast' },
-  { hour: '20:00', solarKw: 0, batteryKw: 1.5, dieselKw: 0.6, demandKw: 2.1, status: 'forecast' },
-  { hour: '08:00', solarKw: 2.1, batteryKw: 0, dieselKw: 0, demandKw: 2, status: 'forecast' },
-  { hour: '12:00', solarKw: 4.4, batteryKw: 1.6, dieselKw: 0, demandKw: 2.6, status: 'forecast' },
-];
+export function PlanTimelineChart({ points = [] }: PlanTimelineChartProps) {
+  if (!points.length) {
+    return <p className="muted">No plan series yet — run a tick to populate the chart.</p>;
+  }
 
-export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartProps) {
-  const maxKw = Math.max(...points.flatMap((point) => [point.solarKw, point.batteryKw, point.dieselKw, point.demandKw]), 1);
+  const maxKw = Math.max(
+    ...points.flatMap((point) => [point.solarKw, point.batteryKw, point.dieselKw, point.demandKw]),
+    1,
+  );
   const width = 720;
   const height = 260;
   const left = 46;
@@ -35,11 +34,18 @@ export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartP
 
   const toX = (index: number) => left + (chartWidth * index) / Math.max(1, points.length - 1);
   const toY = (value: number) => top + chartHeight - (value / maxKw) * chartHeight;
-  const demandPath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(index)} ${toY(point.demandKw)}`).join(' ');
+  const demandPath = points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(index)} ${toY(point.demandKw)}`)
+    .join(' ');
 
   return (
     <div className="timeline-chart">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispatch plan timeline">
+        <defs>
+          <pattern id="forecast-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" strokeWidth="2" opacity="0.35" />
+          </pattern>
+        </defs>
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const y = top + chartHeight * ratio;
           return <line key={ratio} x1={left} x2={width - right} y1={y} y2={y} className="chart-grid" />;
@@ -50,8 +56,20 @@ export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartP
           const solarHeight = chartHeight - (toY(point.solarKw) - top);
           const batteryHeight = chartHeight - (toY(point.batteryKw) - top);
           const dieselHeight = chartHeight - (toY(point.dieselKw) - top);
+          const executed = point.executed ?? (point.status === 'live' ? true : index === 0 && point.status !== 'forecast');
+          const opacity = executed ? 1 : 0.55;
           return (
-            <g key={`${point.hour}-${index}`}>
+            <g key={`${point.hour}-${index}`} opacity={opacity}>
+              {!executed ? (
+                <rect
+                  x={x - 18}
+                  y={top}
+                  width="36"
+                  height={chartHeight}
+                  fill="url(#forecast-hatch)"
+                  className="forecast-band"
+                />
+              ) : null}
               <rect x={x - 15} y={top + chartHeight - solarHeight} width="8" height={solarHeight} className="bar-solar" rx="2" />
               <rect x={x - 4} y={top + chartHeight - batteryHeight} width="8" height={batteryHeight} className="bar-battery" rx="2" />
               <rect x={x + 7} y={top + chartHeight - dieselHeight} width="8" height={dieselHeight} className="bar-diesel" rx="2" />
@@ -68,7 +86,8 @@ export function PlanTimelineChart({ points = defaultPoints }: PlanTimelineChartP
         <span><i className="legend-battery" /> Battery</span>
         <span><i className="legend-diesel" /> Diesel</span>
         <span><i className="legend-demand" /> Demand</span>
-        <Badge tone="forecast">FORECAST</Badge>
+        <Badge kind="FORECAST">hour 1+ hatched</Badge>
+        <Badge kind="SIMULATED">hour 0 solid</Badge>
       </div>
     </div>
   );

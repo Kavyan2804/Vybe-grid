@@ -25,21 +25,23 @@ import logging
 import sys
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy import create_engine
 
 # --- make the sibling `optimizer/` package importable regardless of how uvicorn was launched ---
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_candidate_roots = Path(__file__).resolve().parents
+_REPO_ROOT = next(
+    (root for root in _candidate_roots if (root / "optimizer").is_dir()),
+    Path(__file__).resolve().parents[2],
+)
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from optimizer.application.baseline_service import MicrogridState  # noqa: E402
 from optimizer.application.rolling_horizon_service import RollingHorizonService  # noqa: E402
 from optimizer.domain.entities import (  # noqa: E402
     ActualState,
@@ -54,47 +56,36 @@ from optimizer.infrastructure.dispatch_simulator.adapter import SimulatorDispatc
 from optimizer.infrastructure.forecast_openmeteo.adapter import OpenMeteoForecastAdapter  # noqa: E402
 from optimizer.infrastructure.optimizer_pyomo.adapter import PyomoHighsOptimizerAdapter  # noqa: E402
 
+from src.alerts import rules as alert_rules
 from src.config.settings import get_settings
-from src.realtime.broadcaster import RealtimeEvent, RealtimeEventType, broadcaster
 from src.db.models.alerts import Alert, AlertState, AlertType
-from src.db.models.baseline import BaselineTelemetry
+from src.db.models.baseline import BaselineDispatchLog, BaselineTelemetry
 from src.db.models.dispatch_log import DispatchLog
 from src.db.models.dispatch_plans import DispatchPlan as DispatchPlanORM
 from src.db.models.forecasts import Forecast as ForecastORM
 from src.db.models.sites import Site as SiteORM
 from src.db.models.telemetry import Telemetry
+from src.realtime.broadcaster import RealtimeEvent, RealtimeEventType, broadcaster
+from src.schemas.alerts import AlertType as ContractAlertType
 
 # One site for now — a slug -> YAML path table, extended by adding a line, not a code change
-# (REPO_STRUCTURE.md §1's "config-driven site" promise).
 SITE_CONFIG_PATHS: dict[str, Path] = {
     "Dharavi Microgrid": _REPO_ROOT / "optimizer" / "sites" / "example-site.yml",
 }
 
 _sync_engine = None
 _SyncSessionFactory: sessionmaker | None = None
+_ALERT_COOLDOWN = timedelta(seconds=60)
 
 
 def _sync_session_factory() -> sessionmaker:
-    """Lazily build a sync engine/sessionmaker against the same database as the async one.
-
-    Built lazily (not at import time) so importing this module never opens a connection —
-    useful for tests that only exercise the pure mapping helpers below.
-    """
+    """Lazily build a sync engine/sessionmaker against the same database as the async one."""
     global _sync_engine, _SyncSessionFactory
     if _SyncSessionFactory is None:
         settings = get_settings()
         _sync_engine = create_engine(settings.database_url_sync, future=True)
         _SyncSessionFactory = sessionmaker(bind=_sync_engine, future=True, expire_on_commit=False)
     return _SyncSessionFactory
-
-
-# ---------------------------------------------------------------------------
-# Mapping: optimizer entities <-> the DB/API JSON shape (batt_charge_kw / batt_discharge_kw /
-# soc_kwh / solar_used_kw / solar_curtailed_kw / unmet_flex_kw) that
-# src/schemas/plans.py, src/services/comparison_service.py and src/services/savings_service.py
-# all already assume. The optimizer itself uses a simpler shape (signed battery_kw, soc_pct) —
-# this is the one place that difference is reconciled.
-# ---------------------------------------------------------------------------
 
 
 def decision_to_series_item(
@@ -113,7 +104,6 @@ def decision_to_series_item(
         solar_curtailed_kw = max(0.0, forecast_solar_kw - decision.solar_kw)
     badges = list(decision.badges)
     if executed:
-        # Hour 0, once actually run, is no longer just a forecast of what will happen.
         badges = [b for b in badges if b != "FORECAST"] or ["SIMULATED"]
     return {
         "hour": decision.hour,
@@ -124,8 +114,6 @@ def decision_to_series_item(
         "soc_kwh": soc_kwh,
         "solar_used_kw": decision.solar_kw,
         "solar_curtailed_kw": solar_curtailed_kw,
-        # Not separately exposed by DispatchDecision (folded into load_kw upstream) —
-        # 0.0 is the honest default rather than a guess; see PHASE_2 follow-ups.
         "unmet_flex_kw": 0.0,
         "executed": executed,
         "badges": badges,
@@ -146,19 +134,12 @@ def _forecast_series_json(forecast: Forecast) -> list[dict[str, Any]]:
 
 
 def _aware_utc(value: datetime) -> datetime:
-    """Treat a naive datetime as UTC rather than letting the DB driver guess.
-
-    `OpenMeteoForecastAdapter.fetch_forecast()` currently returns `fetched_at` from
-    `datetime.now()` (naive) — worth fixing at the source, but this module defends
-    against it rather than silently assuming every caller has done so.
-    """
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value
 
 
 def _normalize_solver_status(raw: str) -> str:
-    """`"appsi_highs:optimal"` -> `"optimal"`; `"fallback:greedy_baseline"` -> `"feasible"`."""
     lowered = raw.lower()
     if "optimal" in lowered:
         return "optimal"
@@ -170,11 +151,6 @@ def _normalize_solver_status(raw: str) -> str:
 
 
 def _ensure_site_row(session: Session, site_id: str, config: dict[str, Any]) -> int:
-    """Insert the site row (and version-1 config history) if it doesn't exist yet.
-
-    Returns the site's current `config_version`. A site that already exists is left alone —
-    this only seeds a fresh database, it never overwrites a config someone has since changed.
-    """
     row = session.get(SiteORM, site_id)
     if row is not None:
         return row.config_version
@@ -188,11 +164,6 @@ def _ensure_site_row(session: Session, site_id: str, config: dict[str, Any]) -> 
     session.add(row)
     session.flush()
     return 1
-
-
-# ---------------------------------------------------------------------------
-# Sync repository adapters — implement optimizer/domain/ports.py against Postgres.
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -236,7 +207,6 @@ class PostgresPlanRepository(PlanRepository):
         self.last_plan_db_id = row.id
 
     def latest(self, site_id: str) -> DispatchPlan | None:
-        # Not on RollingHorizonService.tick()'s call path; kept for Protocol conformance.
         return None
 
 
@@ -265,12 +235,6 @@ class PostgresTelemetryRepository(TelemetryRepository):
         self.session.flush()
 
     def latest_soc(self, site_id: str) -> float | None:
-        """Return SoC in **percent** — what RollingHorizonService.tick() expects back.
-
-        The stored column is soc_kwh; the optimizer's own unit is percent, so this is the
-        one place that conversion happens on the read side (ARCHITECTURE.md §4: this is the
-        *only* legal source of a tick's starting state).
-        """
         stmt = (
             select(Telemetry.soc_kwh)
             .where(Telemetry.site_id == site_id)
@@ -281,6 +245,16 @@ class PostgresTelemetryRepository(TelemetryRepository):
         if soc_kwh is None:
             return None
         return (soc_kwh / self.battery_capacity_kwh) * 100.0
+
+    def latest_diesel_on(self, site_id: str) -> bool | None:
+        stmt = (
+            select(Telemetry.diesel_on)
+            .where(Telemetry.site_id == site_id)
+            .order_by(Telemetry.at.desc())
+            .limit(1)
+        )
+        value = self.session.execute(stmt).scalar_one_or_none()
+        return None if value is None else bool(value)
 
 
 @dataclass
@@ -314,48 +288,72 @@ class PostgresExecutionRepository(ExecutionRepository):
 class PostgresAlertSink(AlertPort):
     session: Session
     site_id: str
+    created_alert_ids: list[str] = field(default_factory=list)
 
     def emit(self, alert_type: str, subject: str, payload: dict[str, Any] | None = None) -> None:
         try:
             typed = AlertType(alert_type)
         except ValueError:
-            # The DB's alert_type enum and packages/contracts/events/alert.schema.json have
-            # drifted apart (see docs/agent/mistakes.md follow-up) — skip rather than crash
-            # a rolling tick over a naming mismatch that isn't this module's to fix.
             return
+        now = datetime.now(timezone.utc)
         existing = self.session.execute(
             select(Alert)
             .where(Alert.site_id == self.site_id)
             .where(Alert.type == typed)
-            .where(Alert.subject == self.site_id)
+            .where(Alert.subject == subject)
             .where(Alert.state != AlertState.RESOLVED)
             .limit(1)
         ).scalar_one_or_none()
         if existing is not None:
-            return  # already open — the partial unique index says one is enough
-        now = datetime.now(timezone.utc)
+            return
+
+        recent_resolved = self.session.execute(
+            select(Alert)
+            .where(Alert.site_id == self.site_id)
+            .where(Alert.type == typed)
+            .where(Alert.subject == subject)
+            .where(Alert.state == AlertState.RESOLVED)
+            .order_by(Alert.resolved_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if (
+            recent_resolved is not None
+            and recent_resolved.resolved_at is not None
+            and _aware_utc(recent_resolved.resolved_at) + _ALERT_COOLDOWN > now
+        ):
+            return
+
+        alert_id = f"alr_{uuid.uuid4().hex[:12]}"
+        title = str((payload or {}).get("title") or subject)
+        if len(title) > 160:
+            title = title[:157] + "..."
         row = Alert(
-            id=f"alr_{uuid.uuid4().hex[:12]}",
+            id=alert_id,
             site_id=self.site_id,
             type=typed,
-            subject=self.site_id,
+            subject=subject,
             state=AlertState.CREATED,
-            title=subject,
+            title=title,
             raised_at=now,
             received_at=now,
-            provenance=payload or {},
+            provenance=payload or {"badges": ["SIMULATED"]},
         )
         self.session.add(row)
         self.session.flush()
+        self.created_alert_ids.append(alert_id)
 
 
 def _persist_baseline(
     session: Session,
+    *,
     site_id: str,
     config_version: int,
     battery_capacity_kwh: float,
     baseline_decision: DispatchDecision,
     at: datetime,
+    plan_id: int | None,
+    realized_solar_kw: float,
+    realized_load_kw: float,
 ) -> None:
     """Populate the shadow ledger (DATA_MODEL.md §3) so /api/savings has something to compare."""
     soc_kwh = (baseline_decision.soc_pct / 100.0) * battery_capacity_kwh
@@ -367,21 +365,114 @@ def _persist_baseline(
             diesel_on=baseline_decision.diesel_on,
             diesel_kw=baseline_decision.diesel_kw,
             batt_kw=baseline_decision.battery_kw,
-            solar_kw=baseline_decision.solar_kw,
-            load_kw=baseline_decision.load_kw,
+            # Store the identical realized conditions the baseline decided against.
+            solar_kw=realized_solar_kw,
+            load_kw=realized_load_kw,
             source="baseline",
             config_version=config_version,
         )
     )
+    if plan_id is not None:
+        session.add(
+            BaselineDispatchLog(
+                plan_id=plan_id,
+                hour_index=0,
+                executed_at=at,
+                decision=decision_to_series_item(
+                    baseline_decision,
+                    battery_capacity_kwh=battery_capacity_kwh,
+                    forecast_solar_kw=realized_solar_kw,
+                    executed=True,
+                ),
+            )
+        )
     session.flush()
 
 
-def run_tick_sync(site_id: str) -> dict[str, Any]:
-    """Run one full rolling-horizon tick for `site_id` against the real database.
+def _raise_tick_alerts(
+    *,
+    alert_sink: PostgresAlertSink,
+    site: Site,
+    site_id: str,
+    forecast: Forecast,
+    plan: DispatchPlan,
+    actual: ActualState,
+    baseline_decision: DispatchDecision,
+    fallback_used: bool,
+) -> None:
+    """Evaluate Phase 3 alert rules against the just-completed tick and persist via AlertPort."""
+    raised_at = actual.recorded_at
+    soc_kwh = (actual.soc_pct / 100.0) * site.battery.capacity_kwh
+    reserve_kwh = site.battery.capacity_kwh * (site.battery.soc_min_pct / 100.0)
+    hours_until_diesel = next(
+        (decision.hour for decision in plan.decisions if decision.diesel_on),
+        24,
+    )
 
-    Synchronous end to end by design — see this module's docstring. Called from the async
-    scheduler via `run_in_executor` (backend/src/main.py), never awaited directly.
-    """
+    candidates = [
+        alert_rules.low_soc_reserve(
+            site_id=site_id,
+            soc_kwh=soc_kwh,
+            minimum_reserve_kwh=reserve_kwh,
+            raised_at=raised_at,
+        ),
+        alert_rules.solver_fallback_active(
+            site_id=site_id,
+            fallback_active=fallback_used,
+            raised_at=raised_at,
+        ),
+        alert_rules.forecast_stale(
+            site_id=site_id,
+            forecast_age_minutes=(
+                (datetime.now(timezone.utc) - _aware_utc(forecast.fetched_at)).total_seconds()
+                / 60.0
+            ),
+            maximum_age_minutes=90.0,
+            raised_at=raised_at,
+        ),
+        alert_rules.critical_load_at_risk(
+            site_id=site_id,
+            critical_load_kw=site.load.critical_kw[0] if site.load.critical_kw else 0.0,
+            available_supply_kw=actual.solar_kw
+            + max(0.0, -actual.battery_kw)
+            + actual.diesel_kw,
+            minimum_margin_kw=0.0,
+            raised_at=raised_at,
+        ),
+        alert_rules.diesel_required_soon(
+            site_id=site_id,
+            hours_until_required=float(hours_until_diesel),
+            threshold_hours=2.0,
+            raised_at=raised_at,
+        ),
+        # Compare diesel kW as a same-unit proxy for cost asymmetry this tick.
+        alert_rules.baseline_divergence(
+            site_id=site_id,
+            optimized_cost=float(actual.diesel_kw),
+            baseline_cost=float(baseline_decision.diesel_kw),
+            tolerance=0.01,
+            raised_at=raised_at,
+        ),
+    ]
+
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if candidate.type.value not in {member.value for member in ContractAlertType}:
+            continue
+        alert_sink.emit(
+            alert_type=candidate.type.value,
+            subject=candidate.subject or site_id,
+            payload={
+                "title": candidate.title,
+                "badges": [badge.value for badge in candidate.provenance],
+                "raised_at": candidate.raised_at.isoformat(),
+            },
+        )
+
+
+def run_tick_sync(site_id: str) -> dict[str, Any]:
+    """Run one full rolling-horizon tick for `site_id` against the real database."""
     yaml_path = SITE_CONFIG_PATHS.get(site_id)
     if yaml_path is None:
         raise ValueError(f"no site configuration registered for site_id={site_id!r}")
@@ -441,14 +532,29 @@ def run_tick_sync(site_id: str) -> dict[str, Any]:
             solve_timeout_seconds=settings.solve_timeout_seconds,
         )
         result = service.tick(provided_forecast=forecast)
+        actual: ActualState = result["actual_state"]
 
         _persist_baseline(
             session,
-            site_id,
-            config_version,
-            site.battery.capacity_kwh,
-            result["baseline_decision"],
-            at=datetime.fromisoformat(result["telemetry"]["recorded_at"]),
+            site_id=site_id,
+            config_version=config_version,
+            battery_capacity_kwh=site.battery.capacity_kwh,
+            baseline_decision=result["baseline_decision"],
+            at=actual.recorded_at,
+            plan_id=plan_repo.last_plan_db_id,
+            realized_solar_kw=actual.solar_kw,
+            realized_load_kw=actual.load_kw,
+        )
+
+        _raise_tick_alerts(
+            alert_sink=alert_sink,
+            site=site,
+            site_id=site_id,
+            forecast=forecast,
+            plan=result["plan"],
+            actual=actual,
+            baseline_decision=result["baseline_decision"],
+            fallback_used=result["fallback_used"],
         )
 
         session.commit()
@@ -459,6 +565,9 @@ def run_tick_sync(site_id: str) -> dict[str, Any]:
         "starting_soc_pct": result["starting_soc_pct"],
         "plan_id": plan_repo.last_plan_db_id,
         "recorded_at": result["telemetry"]["recorded_at"],
+        "alert_ids": list(alert_sink.created_alert_ids),
+        "soc_pct": actual.soc_pct,
+        "diesel_on": actual.diesel_on,
     }
 
 
@@ -466,17 +575,7 @@ _logger = logging.getLogger("gridpilot.scheduler")
 
 
 async def scheduled_tick(site_id: str) -> dict[str, Any] | None:
-    """Async entry point APScheduler calls — `RollingScheduler` only ever awaits a coroutine
-    or calls a sync function inline (`backend/src/scheduler/tick.py`); since `run_tick_sync`
-    blocks on HTTP and the MILP solve, it must never run directly on the event loop.
-
-    Also the manual-trigger path (`POST /api/tick`) calls straight through this, so a
-    button-triggered tick and a scheduled one publish realtime events identically.
-
-    Publishing happens *here*, back on the event loop, not inside `run_tick_sync` — that
-    function runs in a worker thread via `run_in_executor`, and `asyncio.Queue` (which the
-    broadcaster is built on) is not thread-safe to touch from anywhere else.
-    """
+    """Async entry point APScheduler calls — blocks off the event loop via executor."""
     loop = asyncio.get_running_loop()
     try:
         summary = await loop.run_in_executor(None, run_tick_sync, site_id)
@@ -488,7 +587,7 @@ async def scheduled_tick(site_id: str) -> dict[str, Any] | None:
                 site_id=site_id,
                 subject=str(summary.get("plan_id") or site_id),
                 timestamp=now,
-                payload={"fallback_used": summary["fallback_used"]},
+                payload={"fallback_used": summary["fallback_used"], "plan_id": summary.get("plan_id")},
             )
         )
         broadcaster.publish(
@@ -497,9 +596,22 @@ async def scheduled_tick(site_id: str) -> dict[str, Any] | None:
                 site_id=site_id,
                 subject=site_id,
                 timestamp=now,
-                payload={"soc_pct": summary["starting_soc_pct"]},
+                payload={
+                    "soc_pct": summary.get("soc_pct", summary["starting_soc_pct"]),
+                    "diesel_on": summary.get("diesel_on"),
+                },
             )
         )
+        for alert_id in summary.get("alert_ids") or []:
+            broadcaster.publish(
+                RealtimeEvent(
+                    type=RealtimeEventType.ALERT_CREATED,
+                    site_id=site_id,
+                    subject=alert_id,
+                    timestamp=now,
+                    payload={"alert_id": alert_id},
+                )
+            )
         return summary
     except Exception:
         _logger.exception("rolling-horizon tick failed for site_id=%s", site_id)

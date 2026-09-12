@@ -72,3 +72,19 @@ latency budget or a claim about the eventual full constraint set.
 
 **Forecloses.** Starting SoC cannot be queried from `DispatchPlan` tables.
 
+---
+
+## 004 — Unify alert enums, Postgres alert store, and identical-conditions baseline
+**Date:** 2026-09-13 · **By:** Copilot · **Status:** Active
+
+**Decision.**
+1. Align DB `alert_type` with `packages/contracts/events/alert.schema.json` (and Phase 3 rules).
+2. Tick path writes alerts only to Postgres; `/api/alerts*` reads that same store (in-memory remains a test override).
+3. Shadow baseline decides against twin-realized solar/load and writes `baseline_dispatch_log` alongside `baseline_telemetry`.
+4. Rolling-horizon solves receive prior diesel on/off continuity from telemetry/service state.
+
+**Reason.** Savings and alerts were split across stores/enums and the baseline was comparing forecast inputs, which would make USP-1 numbers and the alert inbox dishonest.
+
+**Forecloses.** Reintroducing divergent alert type names without a migration; sourcing baseline conditions from forecast instead of realized twin/hardware telemetry.
+
+<!-- Next entry starts at 005. Do not renumber or edit an existing entry — supersede it instead. -->

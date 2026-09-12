@@ -61,6 +61,10 @@ class TelemetryRepository(Protocol):
         """Return latest measured SoC in kWh or percent."""
         ...
 
+    def latest_diesel_on(self, site_id: str) -> Optional[bool]:
+        """Return whether diesel was on in the most recent telemetry row."""
+        ...
+
 
 class ExecutionRepository(Protocol):
     """Atomically persist an executed decision and its actual telemetry."""

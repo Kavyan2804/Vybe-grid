@@ -1,25 +1,35 @@
-export const API_BASE = process.env.NEXT_PUBLIC_GRIDPILOT_API_BASE ?? 'http://127.0.0.1:8001/api';
+// Browser requests use the Next.js BFF so they work in both local and containerized
+// deployments. Server components call the backend directly because Node's fetch does not
+// accept a relative URL.
+export const API_BASE =
+  process.env.NEXT_PUBLIC_GRIDPILOT_API_BASE ??
+  (typeof window === 'undefined'
+    ? `${process.env.BACKEND_URL ?? 'http://127.0.0.1:8000'}/api`
+    : '/api');
 export const DEFAULT_SITE_ID = process.env.NEXT_PUBLIC_GRIDPILOT_SITE_ID ?? 'Dharavi Microgrid';
 
 export type ApiValue = {
   value: number;
   unit?: string;
   source?: string;
+  badges?: string[];
 };
 
 export type OverviewResponse = {
+  server_time?: string;
   site?: { id?: string; name?: string };
   current?: {
     solar_kw: ApiValue;
     load_kw: ApiValue;
     soc_pct: ApiValue;
     diesel_on?: boolean;
-  };
+  } | null;
   today?: {
-    cost_saved_vs_baseline?: ApiValue;
-    fuel_liters_saved_vs_baseline?: ApiValue;
+    cost_saved_vs_baseline?: ApiValue | null;
+    fuel_liters_saved_vs_baseline?: ApiValue | null;
     diesel_hours?: ApiValue;
-  };
+  } | null;
+  unread_alerts?: number;
 };
 
 export type PlanSeriesItem = {

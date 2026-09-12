@@ -47,6 +47,12 @@ class InMemoryTelemetryRepository(TelemetryRepository):
             return None
         return float(readings[-1].get("soc_pct", 50.0))
 
+    def latest_diesel_on(self, site_id: str) -> Optional[bool]:
+        readings = self._readings.get(site_id, [])
+        if not readings:
+            return None
+        return bool(readings[-1].get("diesel_on", False))
+
     def list_for_site(self, site_id: str) -> List[Dict[str, Any]]:
         return list(self._readings.get(site_id, []))
 

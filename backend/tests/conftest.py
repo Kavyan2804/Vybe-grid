@@ -72,7 +72,7 @@ def database_url_sync(pg_container: PostgresContainer) -> str:
     return f"postgresql+psycopg2://gridpilot:gridpilot@{host}:{port}/gridpilot"
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def run_migrations(database_url: str) -> None:
     """Run ``alembic upgrade head`` once against the testcontainer."""
     from alembic.config import Config
@@ -96,7 +96,7 @@ def run_migrations(database_url: str) -> None:
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture
-async def async_engine(database_url: str):
+async def async_engine(database_url: str, run_migrations):
     """Create an async engine pointing at the testcontainer."""
     engine = create_async_engine(database_url, echo=False)
     yield engine

@@ -15,8 +15,7 @@ export async function GET(
       headers: { Accept: 'application/json' },
       cache: 'no-store',
     });
-    const body = await response.text();
-    return new NextResponse(body, {
+    return new NextResponse(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('content-type') || 'application/json',
@@ -39,7 +38,7 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/');
-  const target = `${BACKEND_URL}/api/${path}`;
+  const target = `${BACKEND_URL}/api/${path}${request.nextUrl.search}`;
 
   try {
     const response = await fetch(target, {
@@ -50,8 +49,7 @@ export async function POST(
       body: await request.text(),
       cache: 'no-store',
     });
-    const body = await response.text();
-    return new NextResponse(body, {
+    return new NextResponse(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('content-type') || 'application/json',

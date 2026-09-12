@@ -30,12 +30,12 @@ depends_on = None
 def upgrade() -> None:
     # ---------- Enums ----------
     ENUM(
+        "CRITICAL_LOAD_AT_RISK",
+        "LOW_SOC_RESERVE",
         "DIESEL_REQUIRED_SOON",
-        "SOC_LOW",
-        "SOLAR_FORECAST_STALE",
         "SOLVER_FALLBACK_ACTIVE",
-        "SOLVER_INFEASIBLE",
-        "DIESEL_RUNTIME_EXCEEDED",
+        "FORECAST_STALE",
+        "BASELINE_DIVERGENCE",
         name="alert_type",
     ).create(op.get_bind(), checkfirst=True)
     ENUM(
@@ -46,12 +46,12 @@ def upgrade() -> None:
     ).create(op.get_bind(), checkfirst=True)
 
     alert_type_enum = ENUM(
+        "CRITICAL_LOAD_AT_RISK",
+        "LOW_SOC_RESERVE",
         "DIESEL_REQUIRED_SOON",
-        "SOC_LOW",
-        "SOLAR_FORECAST_STALE",
         "SOLVER_FALLBACK_ACTIVE",
-        "SOLVER_INFEASIBLE",
-        "DIESEL_RUNTIME_EXCEEDED",
+        "FORECAST_STALE",
+        "BASELINE_DIVERGENCE",
         name="alert_type",
         create_type=False,
     )

@@ -149,7 +149,11 @@ def test_legacy_phase1_create_and_api_behavior_remain_compatible() -> None:
 
 
 @pytest.mark.asyncio
-async def test_alert_api_actions_remain_compatible() -> None:
+async def test_alert_api_actions_remain_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.api import alerts as alerts_api
+
+    service = InMemoryAlertService(seed_demo=False, clock=lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    monkeypatch.setattr(alerts_api, "alert_service", service)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         missing = await client.post("/api/alerts/unknown/resolve")

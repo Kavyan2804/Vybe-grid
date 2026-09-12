@@ -1,2 +1,2 @@
-export { Badge } from './Badge';
-export type { BadgeTone } from './Badge';
+export { Badge, BadgeGroup } from './Badge';
+export type { BadgeKind, BadgeTone } from './Badge';

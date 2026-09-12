@@ -19,6 +19,7 @@ from src.db.repositories.telemetry import TelemetryRepository
 from src.db.session import get_db_session
 from src.openapi import OPENAPI_ERROR_RESPONSES
 from src.schemas.common import ProvenanceBadge
+from src.services.postgres_alert_service import PostgresAlertService
 
 router = APIRouter(tags=["overview"])
 
@@ -144,10 +145,12 @@ async def get_overview(
             )
         today = OverviewToday(**today_block)
 
+    unread_alerts = await PostgresAlertService(session).count_open(site_id)
+
     return OverviewResponse(
         server_time=now.isoformat(),
         site=OverviewSite(id=site_id, name=site_name),
         current=current,
         today=today,
-        unread_alerts=0,  # TODO: wire to the real AlertRepository once alert-type reconciliation lands
+        unread_alerts=unread_alerts,
     )

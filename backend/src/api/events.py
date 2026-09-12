@@ -47,4 +47,12 @@ async def _event_stream(site_id: str) -> AsyncIterator[str]:
 
 
 def _format_event(event: RealtimeEvent) -> str:
-    return f"event: {event.type.value}\ndata: {json.dumps(event.payload)}\n\n"
+    payload = {
+        "type": event.type.value,
+        "site_id": event.site_id,
+        "subject": event.subject,
+        "event_id": event.event_id,
+        "timestamp": event.timestamp.isoformat(),
+        "payload": event.payload,
+    }
+    return f"event: {event.type.value}\ndata: {json.dumps(payload)}\n\n"
