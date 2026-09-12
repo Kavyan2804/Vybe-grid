@@ -3,7 +3,7 @@
 > **Goal:** The site model exists as a versioned config, a real weather forecast can be fetched, the
 > literal greedy controller from the problem statement runs and produces a number, and every shared
 > data shape is frozen before anything downstream depends on it.
-> **Status:** Not started
+> **Status:** Complete pending owner review
 > **Owner:** Aarin (ML, integration, dockerization, data collection/cleaning/preprocessing)
 > **Depends on:** —
 > **Demo milestone:** Given one day of forecast and a site config, the greedy controller produces a
@@ -27,14 +27,14 @@ first, then battery, then diesel," not a strawman tuned to lose.
 **Goal:** A microgrid site is fully described by one reviewable file.
 
 **Subtasks:**
-- [ ] Define `Site`, `Battery`, `DieselGenerator`, `Load` entities in `optimizer/domain/entities.py`
-- [ ] `Battery`: `capacity_kwh`, `max_charge_kw`, `max_discharge_kw`, `round_trip_efficiency`,
+- [x] Define `Site`, `Battery`, `DieselGenerator`, `Load` entities in `optimizer/domain/entities.py`
+- [x] `Battery`: `capacity_kwh`, `max_charge_kw`, `max_discharge_kw`, `round_trip_efficiency`,
       `degradation_cost_per_kwh_cycled`, `soc_min_pct`, `soc_max_pct`
-- [ ] `DieselGenerator`: `min_load_kw`, `max_load_kw`, `fuel_curve` (litres/kWh at min and max load,
+- [x] `DieselGenerator`: `min_load_kw`, `max_load_kw`, `fuel_curve` (litres/kWh at min and max load,
       linearly interpolated), `start_cost`, `min_uptime_h`, `min_downtime_h`
-- [ ] `Load`: `critical_kw` profile and `flexible_kw` profile, both as an hourly shape
-- [ ] `site-config.schema.json` in `packages/contracts/` validating the YAML shape
-- [ ] One example site, `optimizer/sites/example-site.yml`, with plausible rural-microgrid numbers
+- [x] `Load`: `critical_kw` profile and `flexible_kw` profile, both as an hourly shape
+- [x] `site-config.schema.json` in `packages/contracts/` validating the YAML shape
+- [x] One example site, `optimizer/sites/example-site.yml`, with plausible rural-microgrid numbers
 
 **Test plan:**
 - A malformed site YAML fails schema validation with a message naming the field
@@ -50,12 +50,12 @@ first, then battery, then diesel," not a strawman tuned to lose.
 can't.
 
 **Subtasks:**
-- [ ] `ForecastPort` interface in `optimizer/domain/ports.py`
-- [ ] `OpenMeteoForecastAdapter` — hourly GHI, cloud cover, temperature for the next 24h
-- [ ] A synthetic load-profile generator (weekday/weekend day-shape + noise) standing in for a real
+- [x] `ForecastPort` interface in `optimizer/domain/ports.py`
+- [x] `OpenMeteoForecastAdapter` — hourly GHI, cloud cover, temperature for the next 24h
+- [x] A synthetic load-profile generator (weekday/weekend day-shape + noise) standing in for a real
       smart-meter feed — badged `FORECAST` with `source: "synthetic"`, never presented as measured
-- [ ] Persistence-fallback: if the live fetch fails, reuse the last successful forecast, `stale: true`
-- [ ] NASA POWER client for historical solar data, used only for backtesting (Phase 5), never live
+- [x] Persistence-fallback: if the live fetch fails, reuse the last successful forecast, `stale: true`
+- [x] NASA POWER client for historical solar data, used only for backtesting (Phase 5), never live
 
 **Test plan:**
 - A live fetch produces a 24-entry hourly series with no gaps
@@ -73,14 +73,14 @@ in the problem statement — no lookahead, no forecast, decides one hour at a ti
 state alone.
 
 **Subtasks:**
-- [ ] `baseline_service.decide(state, current_hour_load) -> DispatchDecision` — no `Forecast` argument
+- [x] `baseline_service.decide(state, current_hour_load) -> DispatchDecision` — no `Forecast` argument
       at all, by construction, so it cannot accidentally gain foresight
-- [ ] Rule: serve load from solar first; any solar surplus charges the battery up to its limits; any
+- [x] Rule: serve load from solar first; any solar surplus charges the battery up to its limits; any
       shortfall discharges the battery down to `soc_min`; only if both are exhausted does diesel start,
       at the load required (respecting `min_load_kw`)
-- [ ] Diesel, once started, keeps running until load can be served by solar+battery again (a literal
+- [x] Diesel, once started, keeps running until load can be served by solar+battery again (a literal
       reading of "when both run out," not an optimized on/off schedule)
-- [ ] Unit tests reproducing the exact motivating example from the problem statement: a cloudy
+- [x] Unit tests reproducing the exact motivating example from the problem statement: a cloudy
       afternoon after a battery fully charged by late morning should show diesel running the evening
       peak under this controller
 
@@ -100,12 +100,12 @@ state alone.
 against it.
 
 **Subtasks:**
-- [ ] `packages/contracts/events/*.schema.json` — `forecast`, `dispatch_plan`, `dispatch_decision`,
+- [x] `packages/contracts/events/*.schema.json` — `forecast`, `dispatch_plan`, `dispatch_decision`,
       `telemetry`, `alert`
-- [ ] `packages/contracts/site-config.schema.json` (from Task 0.1)
-- [ ] A schema-consistency test: every field `API_CONTRACT.md` documents exists in a schema, and vice
+- [x] `packages/contracts/site-config.schema.json` (from Task 0.1)
+- [x] A schema-consistency test: every field `API_CONTRACT.md` documents exists in a schema, and vice
       versa
-- [ ] Announce the freeze — additive changes only from here on (`REPO_STRUCTURE.md` §6)
+- [x] Announce the freeze — additive changes only from here on (`REPO_STRUCTURE.md` §6)
 
 **Test plan:**
 - Every schema parses as valid JSON Schema
@@ -120,10 +120,10 @@ against it.
 **Goal:** Know the solver works, and how fast, before building a formulation on top of it.
 
 **Subtasks:**
-- [ ] Pyomo 6.x + HiGHS installed and pinned in `optimizer/pyproject.toml`
-- [ ] A trivial LP (2 variables, 1 constraint) solved end to end through `PyomoHighsOptimizerAdapter`'s
+- [x] Pyomo 6.x + HiGHS installed and pinned in `optimizer/pyproject.toml`
+- [x] A trivial LP (2 variables, 1 constraint) solved end to end through `PyomoHighsOptimizerAdapter`'s
       scaffolding
-- [ ] Measure and record solve latency for a toy 24-variable problem, as a sanity floor for NFR-1
+- [x] Measure and record solve latency for a toy 24-variable problem, as a sanity floor for NFR-1
 
 **Test plan:**
 - The trivial LP returns the known-correct optimum
@@ -138,10 +138,10 @@ against it.
 **Goal:** Schema-valid forecasts and telemetry on demand, so Phases 2–4 don't wait on each other.
 
 **Subtasks:**
-- [ ] `tools/scenariogen/run.py` reads a scenario file (e.g. "cloudy afternoon", "storm day", "load
+- [x] `tools/scenariogen/run.py` reads a scenario file (e.g. "cloudy afternoon", "storm day", "load
       spike") and emits schema-valid forecast/telemetry fixtures
-- [ ] Every emitted object validates against the canonical schema before being written
-- [ ] A README stating the line: scenarios are **authored**, never captured from a real optimizer run
+- [x] Every emitted object validates against the canonical schema before being written
+- [x] A README stating the line: scenarios are **authored**, never captured from a real optimizer run
       and replayed as if live
 
 **Test plan:**
@@ -155,12 +155,12 @@ against it.
 
 ## Verification (end of Phase 0)
 
-- [ ] **CP-0.1** `example-site.yml` loads into a valid `Site` entity; the schema rejects a malformed one
-- [ ] **CP-0.2** A live forecast fetch succeeds; a simulated outage falls back and marks `stale: true`
-- [ ] **CP-0.3** The baseline controller reproduces the "cloudy afternoon → evening diesel" failure mode from a synthetic day
-- [ ] **CP-0.4** Every contract schema is valid and cross-checked against `API_CONTRACT.md`
-- [ ] **CP-0.5** The solver smoke test passes and its latency is recorded
-- [ ] **CP-0.6** Every bundled `scenariogen` scenario validates
+- [x] **CP-0.1** `example-site.yml` loads into a valid `Site` entity; the schema rejects a malformed one
+- [x] **CP-0.2** A live forecast fetch succeeds; a simulated outage falls back and marks `stale: true`
+- [x] **CP-0.3** The baseline controller reproduces the "cloudy afternoon → evening diesel" failure mode from a synthetic day
+- [x] **CP-0.4** Every contract schema is valid and cross-checked against `API_CONTRACT.md`
+- [x] **CP-0.5** The solver smoke test passes and its latency is recorded
+- [x] **CP-0.6** Every bundled `scenariogen` scenario validates
 
 ## Open issues / follow-ups
 
