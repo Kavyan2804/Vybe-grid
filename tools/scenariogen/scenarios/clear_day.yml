@@ -1,0 +1,6 @@
+name: clear_day
+weather_pattern:
+  morning: sunny
+  afternoon: sunny
+  evening: clear
+load_pattern: normal

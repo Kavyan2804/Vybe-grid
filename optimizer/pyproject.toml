@@ -20,6 +20,22 @@ dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.4"]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = { "optimizer" = "." }
+packages = [
+    "optimizer",
+    "optimizer.application",
+    "optimizer.domain",
+    "optimizer.infrastructure",
+    "optimizer.infrastructure.db",
+    "optimizer.infrastructure.dispatch_hardware",
+    "optimizer.infrastructure.dispatch_simulator",
+    "optimizer.infrastructure.forecast_openmeteo",
+    "optimizer.infrastructure.optimizer_pyomo",
+    "optimizer.sites",
+    "optimizer.tests",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

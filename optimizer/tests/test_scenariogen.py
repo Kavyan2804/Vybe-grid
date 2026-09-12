@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import yaml
 import pytest
@@ -24,6 +25,48 @@ def get_scenarios():
 def test_all_scenarios_validate(scenario):
     forecast = generate_forecast(scenario)
     assert forecast['site_id'] == 'site-scenario'
-    
+
     telemetry = generate_telemetry(scenario)
     assert telemetry['site_id'] == 'site-scenario'
+
+
+def test_cli_dry_run_validate_emits_schema_valid_events():
+    scenario_file = os.path.join(SCENARIOS_DIR, 'clear_day.yml')
+    result = subprocess.run(
+        [
+            sys.executable,
+            os.path.join(PROJECT_ROOT, 'tools', 'scenariogen', 'run.py'),
+            scenario_file,
+            '--dry-run',
+            '--validate',
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload['forecast']['site_id'] == 'site-scenario'
+    assert payload['telemetry']['site_id'] == 'site-scenario'
+
+
+def test_cli_loop_can_be_bounded_for_dashboard_development():
+    scenario_file = os.path.join(SCENARIOS_DIR, 'clear_day.yml')
+    result = subprocess.run(
+        [
+            sys.executable,
+            os.path.join(PROJECT_ROOT, 'tools', 'scenariogen', 'run.py'),
+            scenario_file,
+            '--loop',
+            '--iterations',
+            '1',
+            '--interval-seconds',
+            '0',
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload['forecast']['entries'][0]['hour'] == 0
