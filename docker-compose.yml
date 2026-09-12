@@ -8,15 +8,26 @@ services:
       POSTGRES_DB: gridpilot
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gridpilot -d gridpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - gridpilot_db_data:/var/lib/postgresql/data   # named volume — survives `compose down`
 
   backend:
     build:
       context: ./backend
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://gridpilot:gridpilot@db:5432/gridpilot
+      BACKEND_URL: http://backend:8000
     ports:
       - "8000:8000"
     volumes:
@@ -26,9 +37,13 @@ services:
   dashboard:
     build:
       context: ./dashboard
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       - backend
+    environment:
+      BACKEND_URL: http://backend:8000
     ports:
       - "3000:3000"
 
