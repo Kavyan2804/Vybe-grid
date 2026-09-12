@@ -6,6 +6,7 @@ and yields an ``AsyncSession`` for each test.
 
 import os
 import asyncio
+from typing import Any
 from collections.abc import AsyncGenerator, Generator
 
 import pytest
@@ -18,7 +19,10 @@ from sqlalchemy.ext.asyncio import (
 try:
     from testcontainers.postgres import PostgresContainer
 except ImportError:
-    from testcontainers.community.postgres import PostgresContainer
+    try:
+        from testcontainers.community.postgres import PostgresContainer
+    except ImportError:
+        PostgresContainer = None
 
 
 # ---------------------------------------------------------------------------
@@ -34,8 +38,10 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 
 @pytest.fixture(scope="session")
-def pg_container() -> Generator[PostgresContainer, None, None]:
+def pg_container() -> Generator[Any, None, None]:
     """Start a TimescaleDB container for the test session."""
+    if PostgresContainer is None:
+        pytest.skip("testcontainers is not installed")
     container = (
         PostgresContainer(
             image="timescale/timescaledb:latest-pg16",

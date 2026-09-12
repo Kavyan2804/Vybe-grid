@@ -57,3 +57,18 @@ built; the two tests establish correctness and a first-order latency floor.
 
 **Forecloses.** These values are machine-specific sanity measurements, not the Phase 5 production
 latency budget or a claim about the eventual full constraint set.
+
+---
+
+## 003 — Phase 2 Rolling Horizon Engine: Up/down time formulation and fallback design
+**Date:** 2026-09-12 · **By:** Aarin · **Status:** Active
+
+**Decision.**
+1. Implement diesel up/down-time via binary transition tracking (`diesel_start[t]`, `diesel_stop[t]`), where start cost is applied exclusively on genuine `0 -> 1` transitions.
+2. The starting SoC for every tick in `RollingHorizonService` is strictly sourced from `TelemetryRepository.latest_soc()`, never re-using the previous plan's predicted trajectory.
+3. Fallback path treats critical load as structurally non-curtailable by executing the greedy baseline controller and raising `SOLVER_FALLBACK_ACTIVE`.
+
+**Reason.** Conforms to Clean Architecture layer rules and PRD NFR-3 / USP 1, guaranteeing that real forecast correction happens across rolling ticks and critical load is never dropped even when the solver fails or times out.
+
+**Forecloses.** Starting SoC cannot be queried from `DispatchPlan` tables.
+

@@ -17,7 +17,8 @@
         "type": "string",
         "enum": ["LIVE", "FORECAST", "SIMULATED", "BASELINE"]
       }
-    }
+    },
+    "reason": { "type": "string" }
   },
   "additionalProperties": false
 }

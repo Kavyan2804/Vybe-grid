@@ -3,7 +3,7 @@
 > **Goal:** The optimizer re-solves on a schedule, corrects itself from measured state rather than its
 > own prior prediction, models diesel run-time and battery degradation properly, and degrades safely
 > when the solver can't produce an answer in time.
-> **Status:** Not started — can run concurrently with Phases 3 and 4
+> **Status:** Complete pending owner review
 > **Owner:** Aarin (ML) — Dhruvi & Kavyan on call to support the Phase 1 repositories this phase calls into, no new backend code expected
 > **Depends on:** Phase 1 (contracts frozen; a single solve already works)
 > **Demo milestone:** The plan visibly changes between two consecutive ticks as the forecast updates,
@@ -31,10 +31,10 @@ which is the entire premise of the product.
 **Goal:** A tick fires on a schedule and runs the full sequence in `ARCHITECTURE.md` §3.
 
 **Subtasks:**
-- [ ] APScheduler job, configurable interval (default 1h), one job per active site
-- [ ] Each tick: fetch forecast → read latest telemetry → solve → persist plan → hand hour 0 to
+- [x] APScheduler job, configurable interval (default 1h), one job per active site
+- [x] Each tick: fetch forecast → read latest telemetry → solve → persist plan → hand hour 0 to
       `DispatchPort` → record the result
-- [ ] A `--fast-forward` mode that compresses a simulated day into minutes, for backtesting and demo
+- [x] A `--fast-forward` mode that compresses a simulated day into minutes, for backtesting and demo
       purposes, driven off `scenariogen` fixtures rather than the real clock
 
 **Test plan:**
@@ -51,9 +51,9 @@ which is the entire premise of the product.
 **Goal:** Diesel behaves like a real generator, not a switch that can flip every hour.
 
 **Subtasks:**
-- [ ] Minimum run-time and minimum off-time constraints (standard MILP up/down-time formulation)
-- [ ] Start cost applied only on a `0 → 1` transition of `diesel_on`
-- [ ] A regression scenario: a borderline load pattern that would otherwise start/stop diesel twice
+- [x] Minimum run-time and minimum off-time constraints (standard MILP up/down-time formulation)
+- [x] Start cost applied only on a `0 → 1` transition of `diesel_on`
+- [x] A regression scenario: a borderline load pattern that would otherwise start/stop diesel twice
       inside three hours must now hold it on for the full minimum run-time instead
 
 **Test plan:**
@@ -70,9 +70,9 @@ which is the entire premise of the product.
 cycling the battery for free.
 
 **Subtasks:**
-- [ ] `degradation_cost_per_kwh_cycled` applied to both charge and discharge throughput in the
+- [x] `degradation_cost_per_kwh_cycled` applied to both charge and discharge throughput in the
       objective (`ARCHITECTURE.md` §5)
-- [ ] A comparison test: with degradation cost set to zero, the optimizer cycles the battery more
+- [x] A comparison test: with degradation cost set to zero, the optimizer cycles the battery more
       aggressively than with a realistic cost — if it doesn't, the term isn't wired into the objective
       correctly, whatever the rest of the plan looks like
 
@@ -89,10 +89,10 @@ cycling the battery for free.
 **Goal:** A solver timeout or infeasibility never stops the site from getting a dispatch decision.
 
 **Subtasks:**
-- [ ] Solve timeout budget (default 20s, leaving margin inside NFR-1's 30s tick budget)
-- [ ] On timeout or `infeasible`, raise `SOLVER_FALLBACK_ACTIVE` and call the same greedy rule
+- [x] Solve timeout budget (default 20s, leaving margin inside NFR-1's 30s tick budget)
+- [x] On timeout or `infeasible`, raise `SOLVER_FALLBACK_ACTIVE` and call the same greedy rule
       `baseline_service` runs, for this tick's real dispatch only (`ARCHITECTURE.md` §7)
-- [ ] The fallback decision is persisted through the identical `dispatch_plans`/`dispatch_log` path,
+- [x] The fallback decision is persisted through the identical `dispatch_plans`/`dispatch_log` path,
       `source: "fallback"`, so it is auditable rather than a special case invisible to the ledger
 
 **Test plan:**
@@ -109,9 +109,9 @@ cycling the battery for free.
 **Goal:** Battery reserve scales with forecast confidence rather than a fixed safety margin.
 
 **Subtasks:**
-- [ ] `ForecastPort` returns a P10/P50/P90 solar band when the provider supports it
-- [ ] `soc_min` for the current tick's near-term hours is raised proportional to the band's spread
-- [ ] A comparison scenario: a wide-spread (uncertain) forecast produces a materially larger held-back
+- [x] `ForecastPort` returns a P10/P50/P90 solar band when the provider supports it
+- [x] `soc_min` for the current tick's near-term hours is raised proportional to the band's spread
+- [x] A comparison scenario: a wide-spread (uncertain) forecast produces a materially larger held-back
       reserve than a narrow one, for the same P50 solar value
 
 **Test plan:**
@@ -126,11 +126,11 @@ cycling the battery for free.
 **Goal:** A one-line, plain-language reason per hour's decision.
 
 **Subtasks:**
-- [ ] Read the solver's binding constraints / shadow prices for each hour
-- [ ] Map the dominant binding constraint to a short template — "held back battery to catch forecast
+- [x] Read the solver's binding constraints / shadow prices for each hour
+- [x] Map the dominant binding constraint to a short template — "held back battery to catch forecast
       solar surplus at hour N," "diesel minimum run-time in effect," etc. — filled with real numbers
       from that solve, not a static string
-- [ ] Attach `reason: string` to each hour in the plan's `series`
+- [x] Attach `reason: string` to each hour in the plan's `series`
 
 **Test plan:**
 - A scenario engineered to bind on the battery-reserve constraint produces a reason mentioning
@@ -142,16 +142,16 @@ cycling the battery for free.
 
 ## Verification (end of Phase 2)
 
-- [ ] **CP-2.1** The scheduler fires on interval and produces a new, different plan each tick against
+- [x] **CP-2.1** The scheduler fires on interval and produces a new, different plan each tick against
       a changing forecast
-- [ ] **CP-2.2** A tick's starting SoC always comes from telemetry, verified by a test that would fail
+- [x] **CP-2.2** A tick's starting SoC always comes from telemetry, verified by a test that would fail
       if the previous plan's own trajectory were used instead
-- [ ] **CP-2.3** No plan violates diesel minimum run-time / off-time
-- [ ] **CP-2.4** Battery throughput responds monotonically to degradation cost
-- [ ] **CP-2.5** A forced solver failure produces a fallback decision and an alert, with critical load
+- [x] **CP-2.3** No plan violates diesel minimum run-time / off-time
+- [x] **CP-2.4** Battery throughput responds monotonically to degradation cost
+- [x] **CP-2.5** A forced solver failure produces a fallback decision and an alert, with critical load
       still fully served
-- [ ] `[STRETCH]` CP-2.6 Reserve margin responds to forecast spread
-- [ ] `[STRETCH]` CP-2.7 Explanations reference the actual binding constraint
+- [x] `[STRETCH]` CP-2.6 Reserve margin responds to forecast spread
+- [x] `[STRETCH]` CP-2.7 Explanations reference the actual binding constraint
 
 ## Open issues / follow-ups
 

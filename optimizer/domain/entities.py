@@ -54,6 +54,8 @@ class Forecast:
     source: str
     stale: bool
     fetched_at: datetime
+    solar_p10_kw: List[float] | None = None
+    solar_p90_kw: List[float] | None = None
 
 @dataclass(frozen=True)
 class DispatchDecision:
@@ -65,6 +67,7 @@ class DispatchDecision:
     diesel_on: bool
     soc_pct: float
     badges: List[str]
+    reason: str | None = None
 
 @dataclass(frozen=True)
 class DispatchPlan:

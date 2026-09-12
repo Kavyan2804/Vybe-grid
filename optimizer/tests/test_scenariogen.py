@@ -18,7 +18,9 @@ def get_scenarios():
         for f in os.listdir(SCENARIOS_DIR):
             if f.endswith('.yml'):
                 with open(os.path.join(SCENARIOS_DIR, f), 'r') as yml:
-                    scenarios.append(yaml.safe_load(yml))
+                    loaded = yaml.safe_load(yml)
+                    if loaded:
+                        scenarios.append(loaded)
     return scenarios
 
 @pytest.mark.parametrize("scenario", get_scenarios())
