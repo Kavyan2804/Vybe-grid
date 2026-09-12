@@ -11,8 +11,10 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.db.exceptions import DuplicateResourceError
 from src.db.models.sites import Site
 from src.db.models.alerts import Alert, AlertType, AlertState
+from src.db.repositories.alerts import AlertRepository
 
 
 # ---------------------------------------------------------------------------
@@ -62,15 +64,13 @@ async def test_partial_unique_index_open_alerts(db_session: AsyncSession) -> Non
     """Two open alerts with the same (site_id, type, subject) must fail."""
     site = await _seed_site(db_session, "open-alert-site")
 
+    repo = AlertRepository(db_session)
     alert_1 = _make_alert("alr_001", site.id, AlertState.CREATED)
-    db_session.add(alert_1)
-    await db_session.flush()
+    await repo.create(alert_1)
 
     alert_2 = _make_alert("alr_002", site.id, AlertState.CREATED)
-    db_session.add(alert_2)
-
-    with pytest.raises(IntegrityError):
-        await db_session.flush()
+    with pytest.raises(DuplicateResourceError):
+        await repo.create(alert_2)
 
 
 @pytest.mark.asyncio
@@ -78,15 +78,13 @@ async def test_acknowledged_alert_also_blocked(db_session: AsyncSession) -> None
     """An acknowledged alert is still non-resolved, so it blocks a duplicate."""
     site = await _seed_site(db_session, "ack-alert-site")
 
+    repo = AlertRepository(db_session)
     alert_1 = _make_alert("alr_ack_1", site.id, AlertState.ACKNOWLEDGED)
-    db_session.add(alert_1)
-    await db_session.flush()
+    await repo.create(alert_1)
 
     alert_2 = _make_alert("alr_ack_2", site.id, AlertState.CREATED)
-    db_session.add(alert_2)
-
-    with pytest.raises(IntegrityError):
-        await db_session.flush()
+    with pytest.raises(DuplicateResourceError):
+        await repo.create(alert_2)
 
 
 @pytest.mark.asyncio
@@ -94,11 +92,9 @@ async def test_resolved_alerts_no_conflict(db_session: AsyncSession) -> None:
     """Two resolved alerts with the same key must both succeed."""
     site = await _seed_site(db_session, "resolved-alert-site")
 
+    repo = AlertRepository(db_session)
     alert_1 = _make_alert("alr_res_1", site.id, AlertState.RESOLVED)
     alert_2 = _make_alert("alr_res_2", site.id, AlertState.RESOLVED)
 
-    db_session.add(alert_1)
-    db_session.add(alert_2)
-
-    # Should NOT raise — resolved alerts are excluded from the partial index.
-    await db_session.flush()
+    await repo.create(alert_1)
+    await repo.create(alert_2)
