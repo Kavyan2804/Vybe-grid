@@ -192,10 +192,10 @@
 
       <!-- Navigation Tabs -->
       <nav class="hidden lg:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 shadow-inner h-9 whitespace-nowrap flex-shrink-0">
-        <a aria-current="page" class="px-3 py-1 rounded-lg bg-[#0B6E4F] text-white font-sans text-[12px] font-semibold shadow-xs transition-all whitespace-nowrap" data-path="overview" href="#">Overview</a>
-        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all whitespace-nowrap" data-path="plan-vs-actual" href="#">Plan vs Actual</a>
-        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all whitespace-nowrap" data-path="savings-analysis" href="#">Savings Analysis</a>
-        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all inline-flex items-center gap-1.5 whitespace-nowrap" data-path="alerts" href="#">
+        <a aria-current="page" class="px-3 py-1 rounded-lg bg-[#0B6E4F] text-white font-sans text-[12px] font-semibold shadow-xs transition-all whitespace-nowrap" data-path="overview" href="/" target="_top">Overview</a>
+        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all whitespace-nowrap" data-path="plan-vs-actual" href="/plan" target="_top">Plan vs Actual</a>
+        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all whitespace-nowrap" data-path="savings-analysis" href="/savings" target="_top">Savings Analysis</a>
+        <a class="px-3 py-1 rounded-lg font-sans text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all inline-flex items-center gap-1.5 whitespace-nowrap" data-path="alerts" href="/alerts" target="_top">
           Alerts
           <span class="px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[10px] font-bold leading-none shadow-xs">2</span>
         </a>
@@ -1174,22 +1174,144 @@
         const demand = solar + Math.max(battery, 0) + diesel;
         const x = 60 + (900 * index) / Math.max(1, count - 1);
         return {
-          hour: `${String(item.hour).padStart(2, '0')}:00 (H${item.hour})`,
+          hour: `H${item.hour}`,
           solar,
           battery,
           diesel,
           demand,
-          margin: solar + Math.max(battery, 0) + diesel - demand,
+          margin: Math.max(0, solar + Math.max(battery, 0) + diesel - demand),
           kind: item.executed ? 'LIVE' : 'FORECAST',
           isExecuted: item.executed,
           x,
-          demandY: 240 - Math.min(220, (demand / 5) * 220)
+          demandY: 240
         };
+      }
+
+      function svgEl(name, attrs) {
+        const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+        Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, String(value)));
+        return node;
+      }
+
+      function chartPath(points, valueKey, toY) {
+        return points
+          .map((slot, index) => `${index === 0 ? 'M' : 'L'} ${slot.x.toFixed(2)} ${toY(Math.max(0, slot[valueKey])).toFixed(2)}`)
+          .join(' ');
+      }
+
+      function filledArea(points, valueKey, toY) {
+        if (!points.length) return '';
+        const topLine = points
+          .map((slot, index) => `${index === 0 ? 'M' : 'L'} ${slot.x.toFixed(2)} ${toY(Math.max(0, slot[valueKey])).toFixed(2)}`)
+          .join(' ');
+        return `${topLine} L ${points[points.length - 1].x.toFixed(2)} 240 L ${points[0].x.toFixed(2)} 240 Z`;
+      }
+
+      function updateYAxis(maxKw, toY) {
+        const labels = Array.from(svg.querySelectorAll('text')).filter((node) => node.getAttribute('text-anchor') === 'end');
+        const ticks = [maxKw, maxKw * 0.7, maxKw * 0.4, 0.8];
+        ticks.forEach((tick, index) => {
+          if (!labels[index]) return;
+          labels[index].textContent = `${tick.toFixed(tick >= 10 ? 0 : 1)} kW`;
+          labels[index].setAttribute('y', String(toY(tick) + 4));
+        });
+      }
+
+      function updateXAxis(points) {
+        const axis = Array.from(svg.querySelectorAll('g')).find((node) => node.querySelector('text[y="265"]'));
+        if (!axis) return;
+        axis.innerHTML = '';
+        const step = Math.max(1, Math.ceil(points.length / 10));
+        points.forEach((slot, index) => {
+          if (index !== 0 && index !== points.length - 1 && index % step !== 0) return;
+          const label = svgEl('text', {
+            x: slot.x.toFixed(2),
+            y: 265,
+            'font-weight': slot.isExecuted ? 700 : 500,
+            fill: slot.isExecuted ? '#0B6E4F' : '#64748B',
+          });
+          label.textContent = index === 0 ? `${slot.label} (H0)` : slot.label;
+          axis.appendChild(label);
+        });
+      }
+
+      function renderDispatchChart(plan, points) {
+        const previous = svg.querySelector('#backendDispatchLayer');
+        if (previous) previous.remove();
+
+        const maxKw = Math.max(
+          5,
+          ...points.flatMap((slot) => [slot.solar, Math.abs(slot.battery), slot.diesel, slot.demand])
+        );
+        const paddedMax = Math.ceil(maxKw * 1.15);
+        const toY = (value) => 240 - Math.min(220, (value / paddedMax) * 220);
+        points.forEach((slot) => {
+          slot.demandY = toY(slot.demand);
+        });
+
+        updateYAxis(paddedMax, toY);
+        updateXAxis(points);
+
+        const layer = svgEl('g', { id: 'backendDispatchLayer' });
+        layer.appendChild(svgEl('rect', { x: 35, y: 16, width: 950, height: 230, fill: '#FFFFFF' }));
+        [20, 75, 130, 185, 240].forEach((y, index) => {
+          layer.appendChild(svgEl('line', {
+            x1: 40,
+            y1: y,
+            x2: 980,
+            y2: y,
+            stroke: index === 4 ? '#CBD5E1' : '#E2E8F0',
+            'stroke-width': 1,
+            'stroke-dasharray': index === 4 ? '' : '4 4',
+          }));
+        });
+
+        layer.appendChild(svgEl('line', {
+          x1: 40,
+          y1: toY(0.8),
+          x2: 980,
+          y2: toY(0.8),
+          stroke: '#DC2626',
+          'stroke-width': 1.75,
+          'stroke-dasharray': '6 4',
+        }));
+
+        layer.appendChild(svgEl('rect', { x: 80, y: 20, width: 900, height: 220, fill: '#1D4ED8', 'fill-opacity': 0.015 }));
+        layer.appendChild(svgEl('path', { d: filledArea(points, 'battery', toY), fill: 'url(#forecastHatch)' }));
+        layer.appendChild(svgEl('path', { d: filledArea(points, 'diesel', toY), fill: 'url(#dieselHatch)' }));
+        layer.appendChild(svgEl('path', { d: chartPath(points, 'solar', toY), fill: 'none', stroke: '#F59E0B', 'stroke-width': 2.25, 'stroke-dasharray': '4 3' }));
+        layer.appendChild(svgEl('path', { d: chartPath(points, 'battery', toY), fill: 'none', stroke: '#2563EB', 'stroke-width': 2, 'stroke-dasharray': '4 3' }));
+        layer.appendChild(svgEl('path', { d: chartPath(points, 'diesel', toY), fill: 'none', stroke: '#92400E', 'stroke-width': 1.75, 'stroke-dasharray': '3 3' }));
+        layer.appendChild(svgEl('path', { d: chartPath(points, 'demand', toY), fill: 'none', stroke: '#0F172A', 'stroke-width': 2.5, 'stroke-linecap': 'round' }));
+
+        const executed = points.find((slot) => slot.isExecuted) || points[0];
+        if (executed) {
+          layer.appendChild(svgEl('rect', { x: Math.max(40, executed.x - 20), y: 20, width: 40, height: 220, fill: 'url(#executedGrad)' }));
+          layer.appendChild(svgEl('circle', { cx: executed.x, cy: executed.demandY, r: 5, fill: '#0B6E4F', filter: 'url(#glow)' }));
+          layer.appendChild(svgEl('circle', { cx: executed.x, cy: executed.demandY, r: 2, fill: '#FFFFFF' }));
+          layer.appendChild(svgEl('line', { x1: executed.x + 20, y1: 15, x2: executed.x + 20, y2: 250, stroke: '#0B6E4F', 'stroke-width': 2.5 }));
+        }
+
+        const cursor = document.getElementById('chartCursorLine');
+        svg.insertBefore(layer, cursor);
+
+        const subtitle = Array.from(document.querySelectorAll('h2')).find((node) => node.textContent.trim() === '24h Dispatch Plan');
+        if (subtitle) {
+          const label = subtitle.parentElement && subtitle.parentElement.querySelector('.text-slate-500');
+          if (label) label.textContent = `Backend plan ${plan.plan_id || ''} - ${points.length} hourly intervals`;
+        }
       }
 
       function renderPlan(plan) {
         if (!plan.series || !plan.series.length) return;
         dispatchData = plan.series.map((item, index) => planSlot(item, index, plan.series.length));
+        const tickAt = plan.tick_at ? new Date(plan.tick_at) : new Date();
+        dispatchData.forEach((slot, index) => {
+          const at = new Date(tickAt.getTime() + index * 60 * 60 * 1000);
+          slot.label = `${String(at.getHours()).padStart(2, '0')}:00`;
+          slot.hour = `${slot.label} (H${index})`;
+        });
+        renderDispatchChart(plan, dispatchData);
         updateInspection(dispatchData[Math.min(2, dispatchData.length - 1)]);
         const solver = Array.from(document.querySelectorAll('span')).find((node) => node.textContent.includes('DISPATCH SOLVER:'));
         if (solver) solver.textContent = `DISPATCH SOLVER: ${String(plan.solver_status || 'unknown').toUpperCase()}`;
@@ -1271,3 +1393,4 @@
   </script>
 </body>
 </html>
+
