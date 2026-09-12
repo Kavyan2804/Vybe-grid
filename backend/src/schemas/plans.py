@@ -2,9 +2,57 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from enum import Enum
+
 from pydantic import BaseModel, Field
 
 from src.schemas.common import ProvenanceBadge
+
+
+class MockPlanRequest(BaseModel):
+    """Development-only request for generating a deterministic mock plan."""
+
+    site_id: str = Field(..., min_length=1, max_length=64, examples=["demo-site"])
+    horizon_hours: int = Field(
+        24, ge=1, le=168, description="Planning horizon in hours", examples=[24]
+    )
+
+
+class MockSolverStatus(str, Enum):
+    """Status values for development-only plan generation."""
+
+    MOCK = "mock"
+
+
+class MockDispatchPoint(BaseModel):
+    """One deterministic hourly mock dispatch value set."""
+
+    hour: int = Field(..., ge=0, le=167, examples=[0])
+    solar_kw: float = Field(..., ge=0, description="Mock solar dispatch in kW", examples=[20.0])
+    wind_kw: float = Field(..., ge=0, description="Mock wind dispatch in kW", examples=[8.0])
+    battery_kw: float = Field(
+        ..., description="Mock battery dispatch in kW; positive means discharge", examples=[5.0]
+    )
+    diesel_kw: float = Field(..., ge=0, description="Mock diesel dispatch in kW", examples=[0.0])
+    load_kw: float = Field(..., ge=0, description="Mock load served in kW", examples=[33.0])
+
+
+class MockPlan(BaseModel):
+    """Development-only plan; values are not optimizer output."""
+
+    plan_id: str = Field(..., examples=["mock-plan-demo-site-001"])
+    site_id: str = Field(..., examples=["demo-site"])
+    created_at: datetime = Field(..., description="Creation timestamp of the mock plan")
+    planning_horizon_hours: int = Field(..., ge=1, le=168, examples=[24])
+    solver_status: MockSolverStatus = Field(
+        MockSolverStatus.MOCK, description="Always 'mock'; this is not an optimized result"
+    )
+    total_cost: float = Field(..., ge=0, description="Deterministic mock cost in local currency")
+    total_emissions_kg_co2: float = Field(
+        ..., ge=0, description="Deterministic mock emissions in kg CO2"
+    )
+    dispatch: list[MockDispatchPoint] = Field(..., min_length=1, max_length=168)
 
 
 class PlanSeriesItem(BaseModel):
@@ -34,4 +82,3 @@ class DispatchPlanResponse(BaseModel):
     objective_cost: float = Field(..., description="Calculated total objective cost from optimizer")
     solver_status: str = Field(..., description="Solver status: optimal | feasible | infeasible | timeout | pending_integration")
     solve_ms: int = Field(..., ge=0, description="Solve execution duration in milliseconds")
-
