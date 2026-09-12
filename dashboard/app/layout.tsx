@@ -1,16 +1,19 @@
+import type { Metadata } from 'next';
 import './globals.css';
-import React from 'react';
 
-export const metadata = {
-  title: 'GridPilot Microgrid Operations',
-  description: 'Industrial Energy Management & Telemetry',
+export const metadata: Metadata = {
+  title: 'GridPilot Dashboard',
+  description: 'Microgrid telemetry and dispatch operations dashboard',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en" className="h-full">
-      <body className="h-full antialiased bg-[#F5F7F6] text-[#111827]">{children}</body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
   );
 }
-

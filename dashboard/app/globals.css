@@ -1,29 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --bg: #F5F7F6;
-  --surface: #FFFFFF;
-  --border: #E3E8E6;
-  --text: #111827;
-  --text-muted: #4B5563;
-  --brand: #0B6E4F;
-  --ok: #036B4E;
-  --warn: #92400E;
-  --danger: #B91C1C;
-  --info: #1D4ED8;
-  --live: #036B4E;
-  --forecast: #1D4ED8;
-  --simulated: #6D28D9;
-  --baseline: #92400E;
-  --radius: 16px;
-  --radius-control: 10px;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
+  overflow: hidden;
 }
-
